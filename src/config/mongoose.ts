@@ -1,6 +1,6 @@
 export const mongooseConfig = {
   id: "default",
-  url: "mongodb://localhost:27017/gdc",
+  url: "mongodb://admin:secret@localhost:27017/appdb?authSource=admin",
   connectionOptions: {},
 };
 import { MongoMemoryServer } from "mongodb-memory-server";
