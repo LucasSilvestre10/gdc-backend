@@ -1,17 +1,20 @@
-import { beforeAll, afterAll } from "vitest";
-import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { beforeAll, afterAll } from "vitest";
 
-let mongoServer: MongoMemoryServer;
+export let mongoServer: MongoMemoryServer;
 
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
-  const uri = mongoServer.getUri();
-  await mongoose.connect(uri);
+  await mongoose.connect(mongoServer.getUri());
 });
 
 afterAll(async () => {
+  await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
   await mongoServer.stop();
 });
 
+export default {
+  setupFiles: ["./test/setup.ts"]
+};
