@@ -21,18 +21,9 @@ const SIG_EVENTS = [
 
 async function bootstrap() {
   try {
-    // Inicia o MongoDB em memória
-    const mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-
-    // Passa a URL do banco para o TsED
-    const platform = await PlatformExpress.bootstrap(Server, {
-      mongoose: {
-        url: uri,
-        connectionOptions: {}
-      }
-    });
-    await platform.listen();
+  // Inicializa o TsED normalmente
+  const platform = await PlatformExpress.bootstrap(Server);
+  await platform.listen();
 
     SIG_EVENTS.forEach((evt) => process.on(evt, () => platform.stop()));
 

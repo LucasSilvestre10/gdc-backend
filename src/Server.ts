@@ -8,7 +8,6 @@ import "@tsed/swagger";
 import "@tsed/mongoose";
 import {config} from "./config/index.js";
 import * as rest from "./controllers/rest/index.js";
-import * as pages from "./controllers/pages/index.js";
 
 @Configuration({
   ...config,
@@ -18,10 +17,7 @@ import * as pages from "./controllers/pages/index.js";
   mount: {
     "/rest": [
       ...Object.values(rest)
-    ],
-    "/": [
-      ...Object.values(pages)
-    ]
+    ],    
   },
   swagger: [
     {
