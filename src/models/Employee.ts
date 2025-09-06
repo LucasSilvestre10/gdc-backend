@@ -24,5 +24,5 @@ export class Employee {
 
   /** Tipos de documentos obrigatórios para o colaborador */
   @Property([Ref(DocumentType)])
-  requiredDocumentTypes!: Ref<DocumentType>[];
+  requiredDocumentTypes: Ref<DocumentType>[] = [];
 }
