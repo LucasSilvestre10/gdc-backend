@@ -3,12 +3,7 @@ import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import mongoose from "mongoose";
 import { MongooseModel } from "@tsed/mongoose";
 import { DocumentTypeRepository } from "../src/repositories/DocumentTypeRepository";
-
-interface DocumentType {
-  name: string;
-}
-
-type DocumentTypeDoc = DocumentType & { _id: mongoose.Types.ObjectId };
+import { DocumentType } from "../src/models/DocumentType";
 
 const DocumentTypeSchema = new mongoose.Schema<DocumentType>({ name: String });
 const DocumentTypeModel = mongoose.model<DocumentType>("DocumentType", DocumentTypeSchema);
@@ -28,7 +23,7 @@ describe("DocumentTypeRepository", () => {
     const docType = await repo.create({ name: "CPF" });
     expect(docType.name).toBe("CPF");
 
-    const found = await repo.findById(docType._id);
+    const found = await repo.findById(docType._id?.toString() ?? "");
     expect(found).not.toBeNull();
     expect(found?.name).toBe("CPF");
   });
@@ -46,7 +41,9 @@ describe("DocumentTypeRepository", () => {
     const docType1 = await repo.create({ name: "CNH" });
     const docType2 = await repo.create({ name: "Passaporte" });
 
-    const found = await repo.findByIds([docType1._id, docType2._id]);
+    const found = await repo.findByIds(
+      [docType1._id, docType2._id].map(id => id?.toString()).filter((id): id is string => !!id)
+    );
     expect(found.length).toBe(2);
     expect(found.map(dt => dt.name)).toContain("CNH");
     expect(found.map(dt => dt.name)).toContain("Passaporte");
