@@ -230,6 +230,118 @@ describe("EmployeeService", () => {
       expect(result.sent).toEqual([]);
       expect(result.pending).toEqual([]);
     });
+
+    // NOVO TESTE: Cobre linha 51 - quando employee.requiredDocumentTypes é null/undefined
+    it("should return empty arrays when employee has null requiredDocumentTypes", async () => {
+      const employeeId = new mongoose.Types.ObjectId();
+      
+      // Colaborador com requiredDocumentTypes undefined/null
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        hiredAt: new Date(),
+        requiredDocumentTypes: null // null ao invés de array vazio
+      };
+
+      employeeRepo.findById.mockResolvedValue(employee);
+
+      const result = await service.getDocumentationStatus(employeeId.toString());
+
+      // Deve tratar null como array vazio e retornar arrays vazios
+      expect(result.sent).toEqual([]);
+      expect(result.pending).toEqual([]);
+    });
+
+    // NOVO TESTE: Cobre linhas 69 e 73 - quando type._id é undefined
+    it("should handle document types with undefined _id", async () => {
+      const employeeId = new mongoose.Types.ObjectId();
+      const typeId1 = new mongoose.Types.ObjectId();
+
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        hiredAt: new Date(),
+        requiredDocumentTypes: [typeId1]
+      };
+
+      // Tipo com _id undefined (cenário de erro de dados)
+      const requiredTypes = [
+        { _id: undefined, name: "CPF" } // _id undefined
+      ];
+
+      const sentDocuments = [
+        { 
+          _id: new mongoose.Types.ObjectId(),
+          name: "CPF João Silva",
+          documentTypeId: typeId1,
+          employeeId: employeeId,
+          status: DocumentStatus.SENT
+        }
+      ];
+
+      employeeRepo.findById.mockResolvedValue(employee);
+      documentTypeRepo.findByIds.mockResolvedValue(requiredTypes);
+      documentRepo.find.mockResolvedValue(sentDocuments);
+
+      const result = await service.getDocumentationStatus(employeeId.toString());
+
+      // Deve tratar _id undefined corretamente usando fallback para ""
+      expect(result.sent).toHaveLength(0); // Não vai encontrar match com ""
+      expect(result.pending).toHaveLength(1); // Vai para pending
+      expect(result.pending[0].name).toBe("CPF");
+    });
+
+    // TESTE ADICIONAL: Cenário onde todos os documentos foram enviados
+    it("should return all documents as sent when all are submitted", async () => {
+      const employeeId = new mongoose.Types.ObjectId();
+      const typeId1 = new mongoose.Types.ObjectId();
+      const typeId2 = new mongoose.Types.ObjectId();
+
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        hiredAt: new Date(),
+        requiredDocumentTypes: [typeId1, typeId2]
+      };
+
+      const requiredTypes = [
+        { _id: typeId1, name: "CPF" },
+        { _id: typeId2, name: "RG" }
+      ];
+
+      // Todos os documentos enviados
+      const sentDocuments = [
+        { 
+          _id: new mongoose.Types.ObjectId(),
+          name: "CPF João Silva",
+          documentTypeId: typeId1,
+          employeeId: employeeId,
+          status: DocumentStatus.SENT
+        },
+        { 
+          _id: new mongoose.Types.ObjectId(),
+          name: "RG João Silva",
+          documentTypeId: typeId2,
+          employeeId: employeeId,
+          status: DocumentStatus.SENT
+        }
+      ];
+
+      employeeRepo.findById.mockResolvedValue(employee);
+      documentTypeRepo.findByIds.mockResolvedValue(requiredTypes);
+      documentRepo.find.mockResolvedValue(sentDocuments);
+
+      const result = await service.getDocumentationStatus(employeeId.toString());
+
+      // Todos enviados, nenhum pendente
+      expect(result.sent).toHaveLength(2);
+      expect(result.pending).toHaveLength(0);
+      expect(result.sent.map(s => s.name)).toContain("CPF");
+      expect(result.sent.map(s => s.name)).toContain("RG");
+    });
   });
 
   /**
