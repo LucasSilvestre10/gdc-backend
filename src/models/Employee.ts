@@ -4,6 +4,10 @@ import { DocumentType } from "./DocumentType";
 
 @Model()
 export class Employee {
+  /** Identificador único do colaborador */
+  @Property(ObjectID)
+  _id?: ObjectID;
+
   /** Nome do colaborador */
   @Required()
   @Property(String)

@@ -10,6 +10,10 @@ export enum DocumentStatus {
 
 @Model()
 export class Document {
+
+  @Property(ObjectID)
+  _id?: ObjectID;
+
   @Required()
   @Property(String)
   name!: string;
