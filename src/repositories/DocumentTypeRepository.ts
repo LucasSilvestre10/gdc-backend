@@ -13,6 +13,20 @@ export class DocumentTypeRepository {
     return await docType.save();
   }
 
+  /**
+   * Busca um tipo de documento pelo nome (case-insensitive)
+   * @param name - nome do tipo de documento
+   * @returns DocumentType | null
+   */
+  async findByName(name: string): Promise<DocumentType | null> {
+    const trimmed = name?.trim();
+    if (!trimmed) {
+      return null;
+    }
+    // Busca case-insensitive por nome exato
+    return this.documentTypeModel.findOne({ name: new RegExp(`^${trimmed}$`, "i") }).exec();
+  }
+
   async findById(id: string): Promise<DocumentType | null> {
     return this.documentTypeModel.findById(id).exec();
   }
