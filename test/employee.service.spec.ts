@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 
 /**
  * Testes unitários para EmployeeService
- * Validam as regras de negócio seguindo especificações do desafio INMETA.
+ * Validam as regras de negócio e funcionalidades do sistema.
  * Cada bloco testa uma funcionalidade do serviço, simulando os repositórios com mocks.
  */
 describe("EmployeeService", () => {
@@ -21,8 +21,12 @@ describe("EmployeeService", () => {
       create: vi.fn(),
       update: vi.fn(),
       findById: vi.fn(),
+      list: vi.fn(),
+      findByDocument: vi.fn(),
       addRequiredTypes: vi.fn(),
-      removeRequiredTypes: vi.fn()
+      removeRequiredTypes: vi.fn(),
+      softDelete: vi.fn(),
+      restore: vi.fn()
     };
 
     documentTypeRepo = {
@@ -37,7 +41,7 @@ describe("EmployeeService", () => {
   });
 
   /**
-   * Testa o cadastro de colaborador conforme especificação do desafio.
+   * Testa o cadastro de colaborador conforme regras de negócio do sistema.
    * Valida que o DTO é passado corretamente para o repositório.
    */
   describe("createEmployee", () => {
@@ -55,15 +59,64 @@ describe("EmployeeService", () => {
         requiredDocumentTypes: []
       };
       
+      // Mock: CPF não existe (não há duplicata)
+      employeeRepo.findByDocument.mockResolvedValue(null);
       employeeRepo.create.mockResolvedValue(employee);
 
       const result = await service.createEmployee(dto);
       
-      // Valida que o repositório foi chamado com dados corretos
+      // Valida que verificou duplicata e criou corretamente
+      expect(employeeRepo.findByDocument).toHaveBeenCalledWith("123.456.789-01");
       expect(employeeRepo.create).toHaveBeenCalledWith(dto);
       expect(result).toEqual(employee);
       expect(result.name).toBe("João Silva");
       expect(result.document).toBe("123.456.789-01");
+    });
+
+    it("should throw error when document already exists", async () => {
+      const dto = { 
+        name: "João Silva", 
+        document: "123.456.789-01",
+        hiredAt: new Date("2024-01-01")
+      };
+      
+      // Mock: CPF já existe
+      const existingEmployee = {
+        _id: new mongoose.Types.ObjectId(),
+        name: "Outro João",
+        document: "123.456.789-01"
+      };
+      
+      employeeRepo.findByDocument.mockResolvedValue(existingEmployee);
+
+      // Deve lançar erro por CPF duplicado
+      await expect(service.createEmployee(dto))
+        .rejects.toThrow("Employee with this document already exists");
+      
+      expect(employeeRepo.findByDocument).toHaveBeenCalledWith("123.456.789-01");
+      expect(employeeRepo.create).not.toHaveBeenCalled();
+    });
+
+    it("should create employee when document is not provided", async () => {
+      const dto = { 
+        name: "João Silva",
+        hiredAt: new Date("2024-01-01")
+      };
+      
+      const employee = { 
+        _id: new mongoose.Types.ObjectId(), 
+        ...dto,
+        requiredDocumentTypes: []
+      };
+      
+      employeeRepo.create.mockResolvedValue(employee);
+
+      const result = await service.createEmployee(dto);
+      
+      // Não deve verificar duplicata quando document não é fornecido
+      expect(employeeRepo.findByDocument).not.toHaveBeenCalled();
+      expect(employeeRepo.create).toHaveBeenCalledWith(dto);
+      expect(result).toEqual(employee);
     });
   });
 
@@ -93,8 +146,90 @@ describe("EmployeeService", () => {
   });
 
   /**
+   * Testa a listagem de colaboradores.
+   * Valida paginação e retorno de dados ativos (soft delete).
+   */
+  describe("list", () => {
+    it("should list employees with pagination", async () => {
+      const employees = [
+        {
+          _id: new mongoose.Types.ObjectId(),
+          name: "João Silva",
+          document: "123.456.789-01",
+          isActive: true
+        },
+        {
+          _id: new mongoose.Types.ObjectId(),
+          name: "Maria Santos", 
+          document: "987.654.321-00",
+          isActive: true
+        }
+      ];
+
+      const mockResult = {
+        items: employees,
+        total: 2
+      };
+
+      employeeRepo.list.mockResolvedValue(mockResult);
+
+      const result = await service.list({}, { page: 1, limit: 10 });
+
+      expect(employeeRepo.list).toHaveBeenCalledWith({}, { page: 1, limit: 10 });
+      expect(result.items).toHaveLength(2);
+      expect(result.total).toBe(2);
+      expect(result.items[0].name).toBe("João Silva");
+    });
+
+    it("should list employees with default options", async () => {
+      const mockResult = { items: [], total: 0 };
+      employeeRepo.list.mockResolvedValue(mockResult);
+
+      const result = await service.list();
+
+      expect(employeeRepo.list).toHaveBeenCalledWith({}, {});
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+  });
+
+  /**
+   * Testa a busca de colaborador por ID.
+   * Valida que apenas colaboradores ativos são retornados (soft delete).
+   */
+  describe("findById", () => {
+    it("should find employee by id successfully", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        isActive: true
+      };
+
+      employeeRepo.findById.mockResolvedValue(employee);
+
+      const result = await service.findById(employeeId);
+
+      expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
+      expect(result?.name).toBe("João Silva");
+      expect(result?._id).toBe(employeeId);
+    });
+
+    it("should return null when employee not found", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      employeeRepo.findById.mockResolvedValue(null);
+
+      const result = await service.findById(employeeId);
+
+      expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
+      expect(result).toBeNull();
+    });
+  });
+
+  /**
    * Testa a vinculação de tipos de documentos ao colaborador.
-   * Funcionalidade core do desafio: "Vinculação e desvinculação de um colaborador com tipos de documentos".
+   * Funcionalidade do sistema: "Vinculação e desvinculação de um colaborador com tipos de documentos".
    * - Deve ser possível vincular mais de um tipo por vez
    * - Deve validar se todos os tipos existem antes de vincular
    */
@@ -148,8 +283,8 @@ describe("EmployeeService", () => {
   });
 
   /**
-   * Testa o core business do desafio: status da documentação.
-   * Especificação: "Obter o status da documentação de um colaborador específico, 
+   * Testa a funcionalidade principal: status da documentação.
+   * Funcionalidade: "Obter o status da documentação de um colaborador específico, 
    * mostrando quais foram enviados e quais ainda estão pendentes de envio"
    */
   describe("getDocumentationStatus", () => {
@@ -346,7 +481,7 @@ describe("EmployeeService", () => {
 
   /**
    * Testa a desvinculação de tipos de documentos.
-   * Especificação: "Deve ser possível vincular e desvincular mais de um tipo de documento por vez"
+   * Requisito: "Deve ser possível vincular e desvincular mais de um tipo de documento por vez"
    */
   describe("unlinkDocumentTypes", () => {
     it("should unlink multiple document types successfully", async () => {
@@ -371,6 +506,105 @@ describe("EmployeeService", () => {
 
       // Não deve executar operações desnecessárias
       expect(employeeRepo.removeRequiredTypes).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Testa o soft delete de colaboradores.
+   * Implementa remoção lógica mantendo dados para auditoria.
+   */
+  describe("delete", () => {
+    it("should soft delete employee successfully", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        isActive: true
+      };
+      
+      const deletedEmployee = {
+        ...employee,
+        isActive: false,
+        deletedAt: new Date()
+      };
+
+      employeeRepo.findById.mockResolvedValue(employee);
+      employeeRepo.softDelete.mockResolvedValue(deletedEmployee);
+
+      const result = await service.delete(employeeId);
+
+      expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
+      expect(employeeRepo.softDelete).toHaveBeenCalledWith(employeeId);
+      expect(result).toEqual(deletedEmployee);
+    });
+
+    it("should return null when employee does not exist", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+
+      employeeRepo.findById.mockResolvedValue(null);
+
+      const result = await service.delete(employeeId);
+
+      expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
+      expect(employeeRepo.softDelete).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("should throw error when ID is invalid", async () => {
+      await expect(service.delete(""))
+        .rejects.toThrow("ID is required");
+
+      await expect(service.delete("   "))
+        .rejects.toThrow("ID is required");
+
+      expect(employeeRepo.findById).not.toHaveBeenCalled();
+      expect(employeeRepo.softDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  /**
+   * Testa a restauração de colaboradores (undo do soft delete).
+   * Permite reativar colaboradores removidos logicamente.
+   */
+  describe("restore", () => {
+    it("should restore employee successfully", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const restoredEmployee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01",
+        isActive: true,
+        deletedAt: null
+      };
+
+      employeeRepo.restore.mockResolvedValue(restoredEmployee);
+
+      const result = await service.restore(employeeId);
+
+      expect(employeeRepo.restore).toHaveBeenCalledWith(employeeId);
+      expect(result).toEqual(restoredEmployee);
+    });
+
+    it("should return null when employee does not exist", async () => {
+      const employeeId = new mongoose.Types.ObjectId().toString();
+
+      employeeRepo.restore.mockResolvedValue(null);
+
+      const result = await service.restore(employeeId);
+
+      expect(employeeRepo.restore).toHaveBeenCalledWith(employeeId);
+      expect(result).toBeNull();
+    });
+
+    it("should throw error when ID is invalid", async () => {
+      await expect(service.restore(""))
+        .rejects.toThrow("ID is required");
+
+      await expect(service.restore(null as any))
+        .rejects.toThrow("ID is required");
+
+      expect(employeeRepo.restore).not.toHaveBeenCalled();
     });
   });
 });
