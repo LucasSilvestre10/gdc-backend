@@ -1,4 +1,4 @@
-import { Property, Required, MinLength, MaxLength, Pattern } from "@tsed/schema";
+import { Property, Required, MinLength, MaxLength, Pattern, Default } from "@tsed/schema";
 import { Model, ObjectID, Ref, Unique } from "@tsed/mongoose";
 import { DocumentType } from "./DocumentType";
 
@@ -29,4 +29,21 @@ export class Employee {
   /** Tipos de documentos obrigatórios para o colaborador */
   @Property([Ref(DocumentType)])
   requiredDocumentTypes: Ref<DocumentType>[] = [];
+
+  /** Indica se o colaborador está ativo (soft delete) */
+  @Default(true)
+  @Property(Boolean)
+  isActive!: boolean;
+
+  /** Data de criação do registro */
+  @Property(Date)
+  createdAt?: Date;
+
+  /** Data de última atualização */
+  @Property(Date)
+  updatedAt?: Date;
+
+  /** Data de remoção (soft delete) */
+  @Property(Date)
+  deletedAt?: Date;
 }
