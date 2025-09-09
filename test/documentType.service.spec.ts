@@ -24,6 +24,9 @@ describe("DocumentTypeService", () => {
             list: vi.fn(),
             findById: vi.fn(),
             findByIds: vi.fn(),
+            update: vi.fn(),
+            softDelete: vi.fn(),
+            restore: vi.fn(),
         };
 
         service = new DocumentTypeService(repo);
@@ -166,6 +169,188 @@ describe("DocumentTypeService", () => {
 
             expect(repo.findByIds).toHaveBeenCalledWith(ids);
             expect(result).toEqual(items);
+        });
+    });
+
+    describe("update", () => {
+        it("deve atualizar tipo de documento com sucesso", async () => {
+            // Arrange: dados de entrada e retornos esperados
+            const id = "123";
+            const dto = { name: "CPF Atualizado", description: "Nova descrição" };
+            const existingType = { _id: id, name: "CPF", description: "Descrição antiga" };
+            const updatedType = { _id: id, name: "CPF Atualizado", description: "Nova descrição" };
+            
+            repo.findById.mockResolvedValue(existingType);
+            repo.findByName.mockResolvedValue(null); // Nome não existe em outro registro
+            repo.update.mockResolvedValue(updatedType);
+            
+            // Act: chama o método do service
+            const result = await service.update(id, dto);
+            
+            // Assert: verifica se foi chamado corretamente
+            expect(repo.findById).toHaveBeenCalledWith(id);
+            expect(repo.findByName).toHaveBeenCalledWith("CPF Atualizado");
+            expect(repo.update).toHaveBeenCalledWith(id, {
+                name: "CPF Atualizado",
+                description: "Nova descrição"
+            });
+            expect(result).toEqual(updatedType);
+        });
+
+        it("deve retornar null se tipo de documento não existir", async () => {
+            // Arrange: simula tipo não encontrado
+            const id = "inexistente";
+            const dto = { name: "CPF" };
+            
+            repo.findById.mockResolvedValue(null);
+            
+            // Act: chama o método do service
+            const result = await service.update(id, dto);
+            
+            // Assert: verifica que não tentou atualizar
+            expect(repo.findById).toHaveBeenCalledWith(id);
+            expect(repo.update).not.toHaveBeenCalled();
+            expect(result).toBeNull();
+        });
+
+        it("deve lançar erro se ID for inválido", async () => {
+            // Act & Assert: espera erro para ID inválido
+            await expect(service.update("", { name: "CPF" }))
+                .rejects.toThrow(BadRequest);
+            await expect(service.update("   ", { name: "CPF" }))
+                .rejects.toThrow("ID is required");
+        });
+
+        it("deve lançar erro se nome já existir em outro registro", async () => {
+            // Arrange: simula nome duplicado
+            const id = "123";
+            const dto = { name: "RG" };
+            const existingType = { _id: id, name: "CPF" };
+            const duplicateType = { _id: "456", name: "RG" };
+            
+            repo.findById.mockResolvedValue(existingType);
+            repo.findByName.mockResolvedValue(duplicateType);
+            
+            // Act & Assert: espera erro por nome duplicado
+            await expect(service.update(id, dto))
+                .rejects.toThrow("Document type with this name already exists");
+        });
+
+        it("deve permitir atualizar mesmo nome do registro atual", async () => {
+            // Arrange: simula atualização do mesmo nome
+            const id = "123";
+            const dto = { name: "CPF", description: "Nova descrição" };
+            const existingType = { _id: id, name: "CPF", description: "Antiga" };
+            const sameNameType = { _id: id, name: "CPF" }; // Mesmo ID
+            const updatedType = { _id: id, name: "CPF", description: "Nova descrição" };
+            
+            repo.findById.mockResolvedValue(existingType);
+            repo.findByName.mockResolvedValue(sameNameType);
+            repo.update.mockResolvedValue(updatedType);
+            
+            // Act: chama o método do service
+            const result = await service.update(id, dto);
+            
+            // Assert: deve permitir a atualização
+            expect(result).toEqual(updatedType);
+        });
+
+        it("deve retornar tipo existente se não houver dados para atualizar", async () => {
+            // Arrange: DTO vazio
+            const id = "123";
+            const dto = {};
+            const existingType = { _id: id, name: "CPF" };
+            
+            repo.findById.mockResolvedValue(existingType);
+            
+            // Act: chama o método do service
+            const result = await service.update(id, dto);
+            
+            // Assert: deve retornar o tipo existente sem chamar update
+            expect(repo.update).not.toHaveBeenCalled();
+            expect(result).toEqual(existingType);
+        });
+    });
+
+    describe("delete", () => {
+        it("deve fazer soft delete de tipo de documento com sucesso", async () => {
+            // Arrange: dados de entrada e retorno esperado
+            const id = "123";
+            const existingType = { _id: id, name: "CPF", isActive: true };
+            const deletedType = { _id: id, name: "CPF", isActive: false, deletedAt: new Date() };
+            
+            repo.findById.mockResolvedValue(existingType);
+            repo.softDelete.mockResolvedValue(deletedType);
+            
+            // Act: chama o método do service
+            const result = await service.delete(id);
+            
+            // Assert: verifica se foi chamado corretamente
+            expect(repo.findById).toHaveBeenCalledWith(id);
+            expect(repo.softDelete).toHaveBeenCalledWith(id);
+            expect(result).toEqual(deletedType);
+        });
+
+        it("deve retornar null se tipo de documento não existir", async () => {
+            // Arrange: simula tipo não encontrado
+            const id = "inexistente";
+            
+            repo.findById.mockResolvedValue(null);
+            
+            // Act: chama o método do service
+            const result = await service.delete(id);
+            
+            // Assert: verifica que não tentou deletar
+            expect(repo.findById).toHaveBeenCalledWith(id);
+            expect(repo.softDelete).not.toHaveBeenCalled();
+            expect(result).toBeNull();
+        });
+
+        it("deve lançar erro se ID for inválido", async () => {
+            // Act & Assert: espera erro para ID inválido
+            await expect(service.delete(""))
+                .rejects.toThrow(BadRequest);
+            await expect(service.delete("   "))
+                .rejects.toThrow("ID is required");
+        });
+    });
+
+    describe("restore", () => {
+        it("deve restaurar tipo de documento com sucesso", async () => {
+            // Arrange: dados de entrada e retorno esperado
+            const id = "123";
+            const restoredType = { _id: id, name: "CPF", isActive: true, deletedAt: null };
+            
+            repo.restore.mockResolvedValue(restoredType);
+            
+            // Act: chama o método do service
+            const result = await service.restore(id);
+            
+            // Assert: verifica se foi chamado corretamente
+            expect(repo.restore).toHaveBeenCalledWith(id);
+            expect(result).toEqual(restoredType);
+        });
+
+        it("deve retornar null se tipo de documento não existir", async () => {
+            // Arrange: simula tipo não encontrado
+            const id = "inexistente";
+            
+            repo.restore.mockResolvedValue(null);
+            
+            // Act: chama o método do service
+            const result = await service.restore(id);
+            
+            // Assert: verifica o resultado
+            expect(repo.restore).toHaveBeenCalledWith(id);
+            expect(result).toBeNull();
+        });
+
+        it("deve lançar erro se ID for inválido", async () => {
+            // Act & Assert: espera erro para ID inválido
+            await expect(service.restore(""))
+                .rejects.toThrow(BadRequest);
+            await expect(service.restore("   "))
+                .rejects.toThrow("ID is required");
         });
     });
 });
