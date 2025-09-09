@@ -1,6 +1,6 @@
-import { Injectable } from "@tsed/di";
-import { Model } from "@tsed/mongoose";
-import { DocumentType } from "../models/DocumentType";
+import { Injectable, Inject } from "@tsed/di";
+import { MongooseService } from "@tsed/mongoose";
+import { DocumentType } from "../models/DocumentType.js";
 import { Model as MongooseModel } from "mongoose";
 
 /**
@@ -20,11 +20,19 @@ import { Model as MongooseModel } from "mongoose";
  */
 @Injectable()
 export class DocumentTypeRepository {
+  private documentTypeModel: MongooseModel<DocumentType>;
+
   /**
-   * Injeta o modelo Mongoose do DocumentType através do constructor
-   * @param documentTypeModel - Modelo Mongoose para operações de banco de dados
+   * Obtém o modelo Mongoose através do MongooseService
+   * @param mongooseService - Serviço do Mongoose
    */
-  constructor(@Model(new DocumentType()) private documentTypeModel: MongooseModel<DocumentType>) {}
+  constructor(private mongooseService: MongooseService) {
+    console.log('DocumentTypeRepository constructor - Getting model from MongooseService');
+    // Obtém o modelo que foi registrado pelo @Model() na classe DocumentType
+    const connection = this.mongooseService.get();
+    this.documentTypeModel = connection!.model<DocumentType>("DocumentType");
+    console.log('DocumentTypeRepository constructor - Model obtained:', !!this.documentTypeModel);
+  }
 
   /**
    * Cria um novo tipo de documento no sistema
@@ -39,14 +47,29 @@ export class DocumentTypeRepository {
    * @throws Error se houver falha na validação ou criação
    */
   async create(dto: Partial<DocumentType>): Promise<DocumentType> {
-    // Prepara dados com campos de auditoria e status ativo
-    const documentTypeData = {
-      ...dto,
-      isActive: true,        // Marca como ativo por padrão
-      createdAt: new Date(), // Timestamp de criação
-      updatedAt: new Date()  // Timestamp de última atualização
-    };
-    return await this.documentTypeModel.create(documentTypeData);
+    try {
+      // Prepara dados limpos apenas com campos válidos (sem _id)
+      const documentTypeData = {
+        name: dto.name,
+        description: dto.description || "",
+        isActive: true,        // Marca como ativo por padrão
+        createdAt: new Date(), // Timestamp de criação
+        updatedAt: new Date()  // Timestamp de última atualização
+      };
+      
+      console.log('DocumentTypeRepository.create - Data to save:', documentTypeData);
+      console.log('DocumentTypeRepository.create - Model name:', this.documentTypeModel.modelName);
+      
+      // Usa create diretamente - mais simples e direto
+      const result = await this.documentTypeModel.create(documentTypeData);
+      
+      console.log('DocumentTypeRepository.create - Success:', !!result, result._id);
+      return result.toJSON(); // Converte para objeto simples
+    } catch (error) {
+      console.error('DocumentTypeRepository.create - Error:', error);
+      console.error('DocumentTypeRepository.create - Model schema:', this.documentTypeModel.schema.paths);
+      throw error;
+    }
   }
 
   /**
@@ -121,11 +144,13 @@ export class DocumentTypeRepository {
    * 
    * Funcionalidades:
    * - Implementa paginação com page e limit
+   * - Se não receber filtros, traz TODOS os registros ativos
    * - Aplica filtros customizados combinados com filtro de ativo
+   * - Remove propriedades undefined dos filtros para compatibilidade com MongoDB
    * - Retorna contagem total para controle de paginação
    * - Usado pelos endpoints de listagem da API
    * 
-   * @param filter - Filtros adicionais para a consulta (opcional)
+   * @param filter - Filtros adicionais para a consulta (opcional, padrão: {})
    * @param options - Opções de paginação { page, limit } (opcional)
    * @returns Promise<{ items: DocumentType[]; total: number }> - Lista paginada e total de registros
    */
@@ -133,22 +158,64 @@ export class DocumentTypeRepository {
     filter: Record<string, any> = {},
     options: { page?: number; limit?: number } = {}
   ): Promise<{ items: DocumentType[]; total: number }> {
-    const page = options.page ?? 1;
-    const limit = options.limit ?? 10;
-    const skip = (page - 1) * limit;
+    try {
+      const page = Math.max(1, options.page ?? 1);
+      const limit = Math.max(1, options.limit ?? 10);
+      const skip = (page - 1) * limit;
 
-    // Combina filtros personalizados com filtro de registros ativos
-    const activeFilter = { 
-      ...filter, 
-      isActive: { $ne: false } // Garante apenas registros ativos
-    };
+      // Remove propriedades undefined do filter para evitar problemas no MongoDB
+      const cleanFilter = Object.fromEntries(
+        Object.entries(filter).filter(([_, value]) => value !== undefined)
+      );
+      
+      // Processa filtros especiais
+      const processedFilter: Record<string, any> = {};
+      
+      // Se houver filtro por name, converte para busca case-insensitive e parcial
+      if (cleanFilter.name && typeof cleanFilter.name === 'string') {
+        const nameSearch = cleanFilter.name.trim();
+        if (nameSearch) {
+          // Busca case-insensitive e parcial (contém o texto)
+          processedFilter.name = new RegExp(nameSearch, "i");
+        }
+      }
+      
+      // Adiciona outros filtros que não são especiais
+      Object.entries(cleanFilter).forEach(([key, value]) => {
+        if (key !== 'name') {
+          processedFilter[key] = value;
+        }
+      });
+      
+      // Sempre aplica filtro de registros ativos, mesmo quando filter está vazio
+      const activeFilter = { 
+        ...processedFilter, // Filtros processados (name com regex, outros normais)
+        isActive: true // Simplificado: busca apenas registros explicitamente ativos
+      };
 
-    const [items, total] = await Promise.all([
-      this.documentTypeModel.find(activeFilter).skip(skip).limit(limit).exec(),
-      this.documentTypeModel.countDocuments(activeFilter).exec()
-    ]);
 
-    return { items, total };
+
+      // Executa consulta paralela para otimização
+      const [items, total] = await Promise.all([
+        this.documentTypeModel
+          .find(activeFilter)  // Se filter vazio: { isActive: { $ne: false } } → traz TODOS ativos
+          .skip(skip)
+          .limit(limit)
+          .lean()              // Retorna objetos JS simples (mais rápido)
+          .exec(),
+        this.documentTypeModel.countDocuments(activeFilter).exec()
+      ]);
+
+
+
+      return { 
+        items: items || [], 
+        total: total || 0 
+      };
+    } catch (error) {
+      console.error('DocumentTypeRepository.list - Error:', error);
+      throw error;
+    }
   }
 
   /**
