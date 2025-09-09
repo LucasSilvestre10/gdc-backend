@@ -2,6 +2,7 @@ import {$log} from "@tsed/logger";
 import { PlatformExpress } from "@tsed/platform-express";
 import {Server} from "./Server.js";
 import { MongoMemoryServer } from "mongodb-memory-server";
+import "./config/providers.js";
 
 const SIG_EVENTS = [
   "beforeExit",
