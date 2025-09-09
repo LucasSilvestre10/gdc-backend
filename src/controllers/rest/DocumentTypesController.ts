@@ -6,8 +6,8 @@ import { Inject } from "@tsed/di";
 import { 
   CreateDocumentTypeDto, 
   UpdateDocumentTypeDto 
-} from "../../dtos/documentTypeDTO";
-import { DocumentTypeService } from "../../services/DocumentTypeService";
+} from "../../dtos/documentTypeDTO.js";
+import { DocumentTypeService } from "../../services/DocumentTypeService.js";
 
 /**
  * Controller responsável por gerenciar os tipos de documento.
@@ -22,8 +22,9 @@ import { DocumentTypeService } from "../../services/DocumentTypeService";
  */
 @Controller("/document-types")
 export class DocumentTypesController {
-  @Inject()
-  private documentTypeService!: DocumentTypeService;
+  constructor(
+    @Inject() private documentTypeService: DocumentTypeService
+  ) {}
 
   /**
    * Cria um novo tipo de documento.
@@ -50,6 +51,8 @@ export class DocumentTypesController {
     }
   }
 
+
+
   /**
    * Lista todos os tipos de documento com paginação opcional.
    * @route GET /document-types
@@ -63,10 +66,15 @@ export class DocumentTypesController {
   @Returns(200, Array)
   async list(
     @QueryParams("page") page: number = 1,
-    @QueryParams("limit") limit: number = 10
+    @QueryParams("limit") limit: number = 10,
+    @QueryParams("name") name?: string
   ) {
     try {
-      const result = await this.documentTypeService.list();
+      const result = await this.documentTypeService.list(
+        { name },
+        { page, limit }
+      );
+      
       return {
         success: true,
         data: result.items,
