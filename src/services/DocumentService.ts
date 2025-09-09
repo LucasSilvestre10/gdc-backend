@@ -1,8 +1,8 @@
 import { Injectable, Inject } from "@tsed/di";
 import { Types } from "mongoose";
-import { DocumentRepository } from "../repositories/DocumentRepository";
-import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository";
-import { EmployeeRepository } from "../repositories/EmployeeRepository";
+import { DocumentRepository } from "../repositories/DocumentRepository.js";
+import { DocumentTypeRepository } from "../repositories/index.js";
+import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { Document, DocumentStatus } from "../models/Document";
 import { BadRequest, NotFound } from "@tsed/exceptions";
 import { 

@@ -1,7 +1,7 @@
 import { Model } from "@tsed/mongoose";
-import { Employee } from "../models/Employee";
 import { Injectable } from "@tsed/di";
-import { MongooseModel } from "@tsed/mongoose";
+import { Employee } from "../models/Employee";
+import { Model as MongooseModel } from "mongoose";
 
 /**
  * Repositório de dados para a entidade Employee

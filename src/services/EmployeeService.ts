@@ -1,8 +1,8 @@
 import { Injectable, Inject } from "@tsed/di";
 import { BadRequest } from "@tsed/exceptions";
-import { EmployeeRepository } from "../repositories/EmployeeRepository";
-import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository";
-import { DocumentRepository } from "../repositories/DocumentRepository";
+import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
+import { DocumentTypeRepository } from "../repositories/index.js";
+import { DocumentRepository } from "../repositories/DocumentRepository.js";
 import { Employee } from "../models/Employee";
 import { DocumentType } from "../models/DocumentType";
 import { DocumentStatus } from "../models/Document";
