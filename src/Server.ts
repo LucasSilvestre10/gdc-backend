@@ -1,12 +1,15 @@
 import {join} from "node:path";
 import {Configuration} from "@tsed/di";
 import {application} from "@tsed/platform-http";
-import "@tsed/platform-log-request"; // remove this import if you don&#x27;t want log request
+import "@tsed/platform-log-request"; // remove this import if you don't want log request
 import "@tsed/platform-express"; // /!\ keep this import
 import "@tsed/ajv";
 import "@tsed/swagger";
 import "@tsed/mongoose";
 import {config} from "./config/index.js";
+import "./models/index.js"; // Importa os modelos para registrar no Mongoose
+import "./repositories/index.js";
+import "./services/index.js";
 import * as rest from "./controllers/rest/index.js";
 
 @Configuration({
