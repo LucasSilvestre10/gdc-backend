@@ -38,6 +38,7 @@ export class DocumentTypeService {
         const documentTypeData = {
             name: dto.name.trim(),
             description: dto.description?.trim() || "",
+            isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -88,5 +89,98 @@ export class DocumentTypeService {
         }
 
         return await this.documentTypeRepository.findByIds(ids);
+    }
+
+    /**
+     * Atualiza dados de um tipo de documento existente
+     * 
+     * Funcionalidades:
+     * - Atualiza apenas tipos de documento ativos (soft delete aplicado)
+     * - Valida unicidade do nome se alterado
+     * - Preserva integridade de dados relacionados
+     * - Atualiza timestamp automaticamente
+     * 
+     * @param id - ID do tipo de documento a ser atualizado
+     * @param dto - Dados parciais para atualização
+     * @returns Promise<DocumentType | null> - Tipo atualizado ou null se não encontrado
+     * @throws BadRequest se nome já existir ou dados inválidos
+     */
+    async update(id: string, dto: { name?: string; description?: string }): Promise<DocumentType | null> {
+        // Validação de entrada
+        if (!id?.trim()) {
+            throw new BadRequest("ID is required");
+        }
+
+        // Verifica se o tipo existe
+        const existingType = await this.documentTypeRepository.findById(id);
+        if (!existingType) {
+            return null;
+        }
+
+        // Valida unicidade do nome se alterado
+        if (dto.name?.trim() && dto.name.trim() !== existingType.name) {
+            const duplicateType = await this.documentTypeRepository.findByName(dto.name.trim());
+            if (duplicateType && duplicateType._id?.toString() !== id) {
+                throw new BadRequest("Document type with this name already exists");
+            }
+        }
+
+        // Prepara dados para atualização
+        const updateData: Partial<DocumentType> = {};
+        if (dto.name?.trim()) {
+            updateData.name = dto.name.trim();
+        }
+        if (dto.description !== undefined) {
+            updateData.description = dto.description?.trim() || "";
+        }
+
+        // Executa atualização se houver dados para atualizar
+        if (Object.keys(updateData).length === 0) {
+            return existingType; // Nenhum dado para atualizar
+        }
+
+        return await this.documentTypeRepository.update(id, updateData);
+    }
+
+    /**
+     * Soft delete de um tipo de documento (marca como inativo)
+     * @param id - ID do tipo de documento
+     * @returns Promise<DocumentType | null> - Tipo de documento desativado ou null se não encontrado
+     * @throws BadRequest - Se ID inválido
+     */
+    async delete(id: string): Promise<DocumentType | null> {
+        if (!id?.trim()) {
+            throw new BadRequest("ID is required");
+        }
+
+        // Verifica se o tipo de documento existe e está ativo
+        const documentType = await this.documentTypeRepository.findById(id);
+        if (!documentType) {
+            return null;
+        }
+
+        // TODO: Verificar se há documentos vinculados antes de desativar
+        // const linkedDocuments = await this.documentRepository.findByDocumentTypeId(id);
+        // if (linkedDocuments.length > 0) {
+        //     throw new BadRequest("Cannot delete document type with linked documents");
+        // }
+
+        // Executa o soft delete
+        return await this.documentTypeRepository.softDelete(id);
+    }
+
+    /**
+     * Reativa um tipo de documento (marca como ativo)
+     * @param id - ID do tipo de documento
+     * @returns Promise<DocumentType | null> - Tipo de documento reativado ou null se não encontrado
+     * @throws BadRequest - Se ID inválido
+     */
+    async restore(id: string): Promise<DocumentType | null> {
+        if (!id?.trim()) {
+            throw new BadRequest("ID is required");
+        }
+
+        // Executa a restauração
+        return await this.documentTypeRepository.restore(id);
     }
 }
