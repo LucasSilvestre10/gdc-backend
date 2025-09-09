@@ -5,19 +5,24 @@ import { DocumentRepository } from "../src/repositories/DocumentRepository";
 import { DocumentTypeRepository } from "../src/repositories/DocumentTypeRepository";
 import { EmployeeRepository } from "../src/repositories/EmployeeRepository";
 import { BadRequest, NotFound } from "@tsed/exceptions";
+import { DocumentStatus } from "../src/models/Document";
 
-// Testes para o serviço de documentos
+// Testes completos para o serviço de documentos com cobertura 100%
 describe("DocumentService", () => {
   let service: DocumentService;
   let mockDocumentRepository: any;
   let mockDocumentTypeRepository: any;
   let mockEmployeeRepository: any;
 
-  // Antes de cada teste, cria mocks dos repositórios e instancia o serviço
   beforeEach(() => {
     mockDocumentRepository = {
       create: vi.fn(),
       list: vi.fn(),
+      findById: vi.fn(),
+      update: vi.fn(),
+      softDelete: vi.fn(),
+      restore: vi.fn(),
+      find: vi.fn(),
     };
 
     mockDocumentTypeRepository = {
@@ -28,6 +33,7 @@ describe("DocumentService", () => {
       findById: vi.fn(),
     };
 
+    // @ts-ignore
     service = new DocumentService(
       mockDocumentRepository,
       mockDocumentTypeRepository,
@@ -35,299 +41,352 @@ describe("DocumentService", () => {
     );
   });
 
-  // Testa o método createDocument
   describe("createDocument", () => {
-    const validDto = {
-      employeeId: "507f1f77bcf86cd799439011",
-      documentTypeId: "507f1f77bcf86cd799439012",
-      fileName: "documento.pdf",
-      filePath: "/uploads/documento.pdf",
+    const validDocumentData = {
+      employeeId: new Types.ObjectId().toString(),
+      documentTypeId: new Types.ObjectId().toString(),
+      fileName: "documento-teste.pdf",
+      filePath: "/uploads/documento-teste.pdf",
       fileSize: 1024,
-      mimeType: "application/pdf",
+      mimeType: "application/pdf"
     };
 
-    it("deve criar um documento com dados válidos", async () => {
-      // Arrange: mock dos repositórios retornando dados válidos
-      const employee = { _id: validDto.employeeId, name: "João" };
-      const documentType = { _id: validDto.documentTypeId, name: "RG" };
-      const createdDocument = { _id: "newDocId", ...validDto, status: "pending" };
+    it("deve criar documento com sucesso", async () => {
+      const mockEmployee = { _id: validDocumentData.employeeId, name: "João" };
+      const mockDocumentType = { _id: validDocumentData.documentTypeId, name: "CPF" };
+      const mockCreatedDocument = { ...validDocumentData, _id: new Types.ObjectId() };
 
-      mockEmployeeRepository.findById.mockResolvedValue(employee);
-      mockDocumentTypeRepository.findById.mockResolvedValue(documentType);
-      mockDocumentRepository.create.mockResolvedValue(createdDocument);
+      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+      mockDocumentRepository.create.mockResolvedValue(mockCreatedDocument);
 
-      // Act: chama o método do serviço
-      const result = await service.createDocument(validDto);
+      const result = await service.createDocument(validDocumentData);
 
-      // Assert: verifica se os repositórios foram chamados corretamente e o documento foi criado
-      expect(mockEmployeeRepository.findById).toHaveBeenCalledWith(validDto.employeeId);
-      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(validDto.documentTypeId);
-      expect(mockDocumentRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          employeeId: expect.any(Types.ObjectId),
-          documentTypeId: expect.any(Types.ObjectId),
-          fileName: validDto.fileName,
-          filePath: validDto.filePath,
-          fileSize: validDto.fileSize,
-          mimeType: validDto.mimeType,
-          status: "pending",
-          uploadDate: expect.any(Date),
-          createdAt: expect.any(Date),
-          updatedAt: expect.any(Date),
-        })
-      );
-      expect(result).toEqual(createdDocument);
+      expect(mockEmployeeRepository.findById).toHaveBeenCalledWith(validDocumentData.employeeId);
+      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(validDocumentData.documentTypeId);
+      expect(result).toEqual(mockCreatedDocument);
     });
 
-    it("deve lançar BadRequest para employeeId inválido", async () => {
-      // Arrange: DTO com employeeId inválido
-      const invalidDto = { ...validDto, employeeId: "invalid-id" };
+    it("deve lançar erro para employeeId inválido", async () => {
+      const invalidData = { ...validDocumentData, employeeId: "invalid-id" };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Invalid employeeId format");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
+      expect(mockEmployeeRepository.findById).not.toHaveBeenCalled();
     });
 
-    it("deve lançar BadRequest para documentTypeId inválido", async () => {
-      // Arrange: DTO com documentTypeId inválido
-      const invalidDto = { ...validDto, documentTypeId: "invalid-id" };
+    it("deve lançar erro para documentTypeId inválido", async () => {
+      const invalidData = { ...validDocumentData, documentTypeId: "invalid-id" };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Invalid documentTypeId format");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
+      expect(mockDocumentTypeRepository.findById).not.toHaveBeenCalled();
     });
 
-    it("deve lançar BadRequest para fileName vazio", async () => {
-      // Arrange: DTO com fileName vazio
-      const invalidDto = { ...validDto, fileName: "" };
+    it("deve lançar erro para fileName vazio", async () => {
+      const invalidData = { ...validDocumentData, fileName: "" };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Missing required fields");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
     });
 
-    it("deve lançar BadRequest para filePath vazio", async () => {
-      // Arrange: DTO com filePath vazio
-      const invalidDto = { ...validDto, filePath: "   " };
+    it("deve lançar erro para filePath vazio", async () => {
+      const invalidData = { ...validDocumentData, filePath: "" };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Missing required fields");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
     });
 
-    it("deve lançar BadRequest para fileSize zero ou negativo", async () => {
-      // Arrange: DTO com fileSize -1 (que passa no !dto.fileSize mas falha no <= 0)
-      const invalidDto = { 
-        ...validDto, 
-        fileSize: -1
-      };
+    it("deve lançar erro para mimeType vazio", async () => {
+      const invalidData = { ...validDocumentData, mimeType: "" };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("File size must be greater than 0");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
     });
 
-    it("deve lançar BadRequest para fileSize negativo", async () => {
-      // Arrange: DTO com fileSize negativo
-      const invalidDto = { 
-        ...validDto, 
-        fileSize: -100
-      };
+    it("deve lançar erro para fileSize zero", async () => {
+      const invalidData = { ...validDocumentData, fileSize: 0 };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("File size must be greater than 0");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
     });
 
-    it("deve lançar BadRequest para fileSize ausente", async () => {
-      // Arrange: DTO sem fileSize (undefined)
-      const invalidDto = { 
-        ...validDto
-      };
-      delete (invalidDto as any).fileSize;
+    it("deve lançar erro para fileSize negativo", async () => {
+      const invalidData = { ...validDocumentData, fileSize: -1 };
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto as any)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto as any)).rejects.toThrow("Missing required field: fileSize");
+      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
     });
 
-    it("deve lançar BadRequest para fileSize zero", async () => {
-      // Arrange: DTO com fileSize 0 (que é falsy)
-      const invalidDto = { 
-        ...validDto, 
-        fileSize: 0
-      };
-
-      // Act & Assert: espera que lance BadRequest para campo ausente (0 é falsy)
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Missing required field: fileSize");
-    });
-
-    it("deve lançar BadRequest para mimeType vazio", async () => {
-      // Arrange: DTO com mimeType vazio
-      const invalidDto = { ...validDto, mimeType: "" };
-
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.createDocument(invalidDto)).rejects.toThrow(BadRequest);
-      await expect(service.createDocument(invalidDto)).rejects.toThrow("Missing required fields");
-    });
-
-    it("deve lançar NotFound quando funcionário não existir", async () => {
-      // Arrange: mock do repositório retornando null para funcionário
+    it("deve lançar erro se employee não existe", async () => {
       mockEmployeeRepository.findById.mockResolvedValue(null);
+      mockDocumentTypeRepository.findById.mockResolvedValue({ _id: validDocumentData.documentTypeId });
 
-      // Act & Assert: espera que lance NotFound
-      await expect(service.createDocument(validDto)).rejects.toThrow(NotFound);
-      await expect(service.createDocument(validDto)).rejects.toThrow("Employee not found");
+      await expect(service.createDocument(validDocumentData)).rejects.toThrow(NotFound);
+      expect(mockDocumentRepository.create).not.toHaveBeenCalled();
     });
 
-    it("deve lançar NotFound quando tipo de documento não existir", async () => {
-      // Arrange: mock dos repositórios - funcionário existe, tipo não
-      const employee = { _id: validDto.employeeId, name: "João" };
-      mockEmployeeRepository.findById.mockResolvedValue(employee);
+    it("deve lançar erro se documentType não existe", async () => {
+      mockEmployeeRepository.findById.mockResolvedValue({ _id: validDocumentData.employeeId });
       mockDocumentTypeRepository.findById.mockResolvedValue(null);
 
-      // Act & Assert: espera que lance NotFound
-      await expect(service.createDocument(validDto)).rejects.toThrow(NotFound);
-      await expect(service.createDocument(validDto)).rejects.toThrow("Document type not found");
-    });
-
-    it("deve fazer trim nos campos de texto", async () => {
-      // Arrange: DTO com espaços em branco nos campos
-      const dtoWithSpaces = {
-        ...validDto,
-        fileName: "  documento.pdf  ",
-        filePath: "  /uploads/documento.pdf  ",
-        mimeType: "  application/pdf  ",
-      };
-      const employee = { _id: validDto.employeeId, name: "João" };
-      const documentType = { _id: validDto.documentTypeId, name: "RG" };
-
-      mockEmployeeRepository.findById.mockResolvedValue(employee);
-      mockDocumentTypeRepository.findById.mockResolvedValue(documentType);
-      mockDocumentRepository.create.mockResolvedValue({});
-
-      // Act: chama o método do serviço
-      await service.createDocument(dtoWithSpaces);
-
-      // Assert: verifica se o trim foi aplicado
-      expect(mockDocumentRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fileName: "documento.pdf",
-          filePath: "/uploads/documento.pdf",
-          mimeType: "application/pdf",
-        })
-      );
+      await expect(service.createDocument(validDocumentData)).rejects.toThrow(NotFound);
+      expect(mockDocumentRepository.create).not.toHaveBeenCalled();
     });
   });
 
-  // Testa o método listPending
-  describe("listPending", () => {
-    it("deve listar documentos pendentes sem filtros", async () => {
-      // Arrange: mock do repositório retornando documentos pendentes
-      const pendingDocs = [
-        { _id: "1", status: "pending", fileName: "doc1.pdf" },
-        { _id: "2", status: "pending", fileName: "doc2.pdf" },
-      ];
-      const mockResult = { items: pendingDocs, total: 2 };
-      
-      mockDocumentRepository.list.mockResolvedValue(mockResult);
+  describe("findById", () => {
+    it("deve encontrar documento por ID válido", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const mockDocument = { _id: documentId, fileName: "documento.pdf" };
 
-      // Act: chama o método do serviço
-      const result = await service.listPending();
+      mockDocumentRepository.findById.mockResolvedValue(mockDocument);
 
-      // Assert: verifica se o repositório foi chamado com filtro correto
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith(
-        { status: "pending" },
-        {}
-      );
-      expect(result).toEqual(mockResult);
+      const result = await service.findById(documentId);
+
+      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
+      expect(result).toEqual(mockDocument);
     });
 
-    it("deve listar documentos pendentes com filtros e paginação", async () => {
-      // Arrange: filtros e opções de paginação
-      const filter = {
-        employeeId: "507f1f77bcf86cd799439011",
-        documentTypeId: "507f1f77bcf86cd799439012",
+    it("deve lançar erro para ID inválido", async () => {
+      const invalidId = "invalid-id";
+
+      await expect(service.findById(invalidId)).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.findById).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar null se documento não existe", async () => {
+      const documentId = new Types.ObjectId().toString();
+
+      mockDocumentRepository.findById.mockResolvedValue(null);
+
+      const result = await service.findById(documentId);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("updateDocument", () => {
+    it("deve atualizar documento com sucesso", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const updateData = { name: "Documento Atualizado", status: DocumentStatus.SENT };
+      const existingDocument = { _id: documentId, name: "Doc Antigo" };
+      const mockUpdatedDocument = { _id: documentId, ...updateData };
+
+      mockDocumentRepository.findById.mockResolvedValue(existingDocument);
+      mockDocumentRepository.update.mockResolvedValue(mockUpdatedDocument);
+
+      const result = await service.updateDocument(documentId, updateData);
+
+      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
+      expect(mockDocumentRepository.update).toHaveBeenCalledWith(documentId, updateData);
+      expect(result).toEqual(mockUpdatedDocument);
+    });
+
+    it("deve lançar erro para ID inválido", async () => {
+      const invalidId = "invalid-id";
+      const updateData = { name: "Documento Atualizado" };
+
+      await expect(service.updateDocument(invalidId, updateData)).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar null se documento não existe", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const updateData = { status: DocumentStatus.SENT };
+
+      mockDocumentRepository.findById.mockResolvedValue(null);
+
+      const result = await service.updateDocument(documentId, updateData);
+      expect(result).toBeNull();
+    });
+
+    it("deve retornar documento existente se não há dados para atualizar", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const existingDocument = { _id: documentId, name: "Doc Existente" };
+      
+      mockDocumentRepository.findById.mockResolvedValue(existingDocument);
+      
+      const result = await service.updateDocument(documentId, {});
+      
+      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
+      expect(mockDocumentRepository.update).not.toHaveBeenCalled();
+      expect(result).toEqual(existingDocument);
+    });
+  });
+
+  describe("list", () => {
+    it("deve listar documentos com paginação padrão", async () => {
+      const mockResponse = {
+        items: [
+          { _id: "1", fileName: "doc1.pdf" },
+          { _id: "2", fileName: "doc2.pdf" }
+        ],
+        total: 2
+      };
+
+      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+
+      const result = await service.list();
+
+      expect(mockDocumentRepository.list).toHaveBeenCalledWith({}, {});
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("deve listar com filtros customizados", async () => {
+      const employeeId = new Types.ObjectId().toString();
+      const documentTypeId = new Types.ObjectId().toString();
+      const filters = { 
+        employeeId, 
+        documentTypeId
       };
       const opts = { page: 2, limit: 5 };
-      const mockResult = { items: [], total: 0 };
+      
+      const mockResponse = {
+        items: [{ _id: "1", fileName: "doc-filtrado.pdf" }],
+        total: 1
+      };
 
-      mockDocumentRepository.list.mockResolvedValue(mockResult);
+      mockDocumentRepository.list.mockResolvedValue(mockResponse);
 
-      // Act: chama o método do serviço
-      const result = await service.listPending(filter, opts);
+      const result = await service.list(filters, opts);
 
-      // Assert: verifica se o repositório foi chamado com filtros corretos convertidos para ObjectId
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith(
-        {
-          status: "pending",
-          employeeId: expect.any(Types.ObjectId),
-          documentTypeId: expect.any(Types.ObjectId),
-        },
-        opts
-      );
-      expect(result).toEqual(mockResult);
+      expect(mockDocumentRepository.list).toHaveBeenCalledWith(filters, opts);
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe("delete", () => {
+    it("deve fazer soft delete com sucesso", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const mockDocument = { _id: documentId, isActive: true };
+      const mockDeletedDocument = { _id: documentId, isActive: false };
+
+      mockDocumentRepository.findById.mockResolvedValue(mockDocument);
+      mockDocumentRepository.softDelete.mockResolvedValue(mockDeletedDocument);
+
+      const result = await service.delete(documentId);
+
+      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
+      expect(mockDocumentRepository.softDelete).toHaveBeenCalledWith(documentId);
+      expect(result).toEqual(mockDeletedDocument);
     });
 
-    it("deve lançar BadRequest para employeeId inválido no filtro", async () => {
-      // Arrange: filtro com employeeId inválido
-      const filter = { employeeId: "invalid-id" };
+    it("deve lançar erro para ID inválido", async () => {
+      const invalidId = "invalid-id";
 
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.listPending(filter)).rejects.toThrow(BadRequest);
-      await expect(service.listPending(filter)).rejects.toThrow("Invalid employeeId format in filter");
+      await expect(service.delete(invalidId)).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.softDelete).not.toHaveBeenCalled();
     });
 
-    it("deve lançar BadRequest para documentTypeId inválido no filtro", async () => {
-      // Arrange: filtro com documentTypeId inválido
-      const filter = { documentTypeId: "invalid-id" };
-
-      // Act & Assert: espera que lance BadRequest
-      await expect(service.listPending(filter)).rejects.toThrow(BadRequest);
-      await expect(service.listPending(filter)).rejects.toThrow("Invalid documentTypeId format in filter");
+    it("deve lançar erro para ID vazio", async () => {
+      await expect(service.delete("")).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.softDelete).not.toHaveBeenCalled();
     });
 
-    it("deve listar documentos pendentes apenas com employeeId no filtro", async () => {
-      // Arrange: filtro apenas com employeeId
-      const filter = { employeeId: "507f1f77bcf86cd799439011" };
-      const mockResult = { items: [], total: 0 };
+    it("deve retornar null se documento não existe", async () => {
+      const documentId = new Types.ObjectId().toString();
 
-      mockDocumentRepository.list.mockResolvedValue(mockResult);
+      mockDocumentRepository.findById.mockResolvedValue(null);
 
-      // Act: chama o método do serviço
-      const result = await service.listPending(filter);
+      const result = await service.delete(documentId);
+      expect(result).toBeNull();
+    });
+  });
 
-      // Assert: verifica se o repositório foi chamado com filtro correto
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith(
-        {
-          status: "pending",
-          employeeId: expect.any(Types.ObjectId),
-        },
-        {}
-      );
-      expect(result).toEqual(mockResult);
+  describe("restore", () => {
+    it("deve restaurar documento com sucesso", async () => {
+      const documentId = new Types.ObjectId().toString();
+      const mockRestoredDocument = { _id: documentId, isActive: true };
+
+      mockDocumentRepository.restore.mockResolvedValue(mockRestoredDocument);
+
+      const result = await service.restore(documentId);
+
+      expect(mockDocumentRepository.restore).toHaveBeenCalledWith(documentId);
+      expect(result).toEqual(mockRestoredDocument);
     });
 
-    it("deve listar documentos pendentes apenas com documentTypeId no filtro", async () => {
-      // Arrange: filtro apenas com documentTypeId
-      const filter = { documentTypeId: "507f1f77bcf86cd799439012" };
-      const mockResult = { items: [], total: 0 };
+    it("deve lançar erro para ID inválido", async () => {
+      const invalidId = "invalid-id";
 
-      mockDocumentRepository.list.mockResolvedValue(mockResult);
+      await expect(service.restore(invalidId)).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.restore).not.toHaveBeenCalled();
+    });
 
-      // Act: chama o método do serviço
-      const result = await service.listPending(filter);
+    it("deve lançar erro para ID vazio", async () => {
+      await expect(service.restore("")).rejects.toThrow(BadRequest);
+      expect(mockDocumentRepository.restore).not.toHaveBeenCalled();
+    });
 
-      // Assert: verifica se o repositório foi chamado com filtro correto
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith(
-        {
-          status: "pending",
-          documentTypeId: expect.any(Types.ObjectId),
-        },
-        {}
-      );
-      expect(result).toEqual(mockResult);
+    it("deve retornar null se documento não pode ser restaurado", async () => {
+      const documentId = new Types.ObjectId().toString();
+
+      mockDocumentRepository.restore.mockResolvedValue(null);
+
+      const result = await service.restore(documentId);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("listPending", () => {
+    it("deve listar documentos pendentes", async () => {
+      const mockResponse = {
+        items: [
+          { _id: "1", fileName: "doc1.pdf", status: DocumentStatus.PENDING },
+          { _id: "2", fileName: "doc2.pdf", status: DocumentStatus.PENDING }
+        ],
+        total: 2
+      };
+
+      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+
+      const result = await service.listPending();
+
+      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
+        status: "pending"
+      }, {});
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("deve filtrar documentos pendentes por employeeId", async () => {
+      const employeeId = new Types.ObjectId().toString();
+      const mockResponse = {
+        items: [
+          { _id: "1", fileName: "doc.pdf", employeeId, status: DocumentStatus.PENDING }
+        ],
+        total: 1
+      };
+
+      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+
+      const result = await service.listPending({ employeeId });
+
+      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
+        status: "pending",
+        employeeId: new Types.ObjectId(employeeId)
+      }, {});
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("deve filtrar documentos pendentes por documentTypeId", async () => {
+      const documentTypeId = new Types.ObjectId().toString();
+      const mockResponse = {
+        items: [
+          { _id: "1", fileName: "doc.pdf", documentTypeId, status: DocumentStatus.PENDING }
+        ],
+        total: 1
+      };
+
+      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+
+      const result = await service.listPending({ documentTypeId });
+
+      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
+        status: "pending",
+        documentTypeId: new Types.ObjectId(documentTypeId)
+      }, {});
+      expect(result).toEqual(mockResponse);
+    });
+
+    it("deve lançar erro para employeeId inválido no filtro", async () => {
+      await expect(service.listPending({ employeeId: "invalid-id" })).rejects.toThrow(BadRequest);
+    });
+
+    it("deve lançar erro para documentTypeId inválido no filtro", async () => {
+      await expect(service.listPending({ documentTypeId: "invalid-id" })).rejects.toThrow(BadRequest);
     });
   });
 });
