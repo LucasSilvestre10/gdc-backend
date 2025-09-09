@@ -1,6 +1,7 @@
-import { Injectable } from "@tsed/di";
-import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository";
-import { DocumentType } from "../models/DocumentType";
+import { Injectable, Inject } from "@tsed/di";
+import { DocumentType } from "../models/DocumentType.js";
+import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository.js";
+import { DOCUMENT_TYPE_REPOSITORY_TOKEN } from "../config/providers.js";
 import { BadRequest } from "@tsed/exceptions";
 
 /**
@@ -10,8 +11,17 @@ import { BadRequest } from "@tsed/exceptions";
 @Injectable()
 export class DocumentTypeService {
     constructor(
-        private documentTypeRepository: DocumentTypeRepository
-    ) {}
+        @Inject(DOCUMENT_TYPE_REPOSITORY_TOKEN) private documentTypeRepository: DocumentTypeRepository
+    ) {
+        console.log('DocumentTypeService constructor');
+        console.log('Repository type:', typeof this.documentTypeRepository);
+        console.log('Repository constructor:', this.documentTypeRepository?.constructor?.name);
+        console.log('Has findByName:', typeof this.documentTypeRepository?.findByName);
+        console.log('Has list:', typeof this.documentTypeRepository?.list);
+        console.log('Repository prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.documentTypeRepository || {})));
+    }
+
+    // Nota: método removido - usar this.documentTypeRepository.findByName() diretamente
 
     /**
      * Cria um novo tipo de documento
@@ -29,7 +39,8 @@ export class DocumentTypeService {
         }
 
         // Verifica se já existe um tipo com o mesmo nome (evita duplicatas)
-        const existingType = await this.documentTypeRepository.findByName(dto.name.trim());
+        const nameToCheck = dto.name.trim();
+        const existingType = await this.documentTypeRepository.findByName(nameToCheck);
         if (existingType) {
             throw new BadRequest("Document type with this name already exists");
         }
@@ -38,13 +49,12 @@ export class DocumentTypeService {
         const documentTypeData = {
             name: dto.name.trim(),
             description: dto.description?.trim() || "",
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
         };
 
         return await this.documentTypeRepository.create(documentTypeData);
     }
+
+    // TODO: Implementar outros métodos (list, findById, update, delete) quando necessário
 
     /**
      * Lista tipos de documentos com paginação
@@ -58,15 +68,8 @@ export class DocumentTypeService {
         } = {},
         opts: { page?: number; limit?: number } = {}
     ): Promise<{ items: DocumentType[]; total: number }> {
-        // Constrói o filtro de busca
-        const searchFilter: any = {};
-
-        // Filtro por nome (busca parcial, case-insensitive)
-        if (filter.name?.trim()) {
-            searchFilter.name = new RegExp(filter.name.trim(), 'i');
-        }
-
-        return await this.documentTypeRepository.list(searchFilter, opts);
+        // Utiliza o repository para listar com paginação
+        return await this.documentTypeRepository.list(filter, opts);
     }
 
     /**
@@ -119,14 +122,17 @@ export class DocumentTypeService {
 
         // Valida unicidade do nome se alterado
         if (dto.name?.trim() && dto.name.trim() !== existingType.name) {
-            const duplicateType = await this.documentTypeRepository.findByName(dto.name.trim());
-            if (duplicateType && duplicateType._id?.toString() !== id) {
+            const nameToCheck = dto.name.trim();
+            const duplicateType = await this.documentTypeRepository.findByName(nameToCheck);
+
+            // Se encontrou um tipo com o mesmo nome, é duplicata (não é o mesmo registro sendo atualizado)
+            if (duplicateType) {
                 throw new BadRequest("Document type with this name already exists");
             }
         }
 
         // Prepara dados para atualização
-        const updateData: Partial<DocumentType> = {};
+        const updateData: any = {};
         if (dto.name?.trim()) {
             updateData.name = dto.name.trim();
         }
