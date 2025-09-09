@@ -5,7 +5,8 @@ import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { 
   CreateDocumentDto, 
-  ListPendingDocumentsDto 
+  ListPendingDocumentsDto,
+  PendingDocumentsListResponseDto 
 } from "../../dtos/documentDTO";
 import { DocumentService } from "../../services/DocumentService";
 
@@ -112,45 +113,45 @@ export class DocumentsController {
   }
 
   /**
-   * Lista documentos pendentes com filtros avançados e paginação.
-   * Endpoint especializado para o requisito principal do sistema.
+   * Lista documentos pendentes usando lógica de negócio avançada (Dia 5)
+   * 
+   * Funcionalidades:
+   * - Identifica tipos de documento obrigatórios ainda não enviados
+   * - Cruza dados entre colaboradores, tipos obrigatórios e documentos enviados
+   * - Filtros opcionais por colaborador e tipo de documento
+   * - Paginação completa com metadados
+   * - Retorna "documentos virtuais" representando pendências
+   * 
    * @route GET /documents/pending
    * @query employeeId - Filtro por colaborador específico
    * @query documentTypeId - Filtro por tipo de documento específico
    * @query page - Número da página (padrão: 1)
-   * @query limit - Itens por página (padrão: 10)
-   * @returns 200 - Lista paginada de documentos pendentes
+   * @query limit - Itens por página (padrão: 10, máximo: 100)
+   * @returns 200 - Lista paginada de documentos pendentes com metadados
    */
   @Get("/pending")
-  @Summary("Listar documentos pendentes")
-  @Description("Lista todos os documentos com status 'pending' com filtros opcionais por colaborador e tipo de documento")
-  @Returns(200, Object)
+  @Summary("Listar documentos pendentes (lógica avançada)")
+  @Description("Lista tipos de documento obrigatórios ainda não enviados pelos colaboradores usando lógica de diferença entre obrigatórios e enviados")
+  @Returns(200, PendingDocumentsListResponseDto)
   async listPending(
     @QueryParams("employeeId") employeeId?: string,
     @QueryParams("documentTypeId") documentTypeId?: string,
     @QueryParams("page") page: number = 1,
     @QueryParams("limit") limit: number = 10
-  ) {
+  ): Promise<PendingDocumentsListResponseDto> {
     try {
-      // Constrói filtros para documentos pendentes
-      const filters: any = {};
-      if (employeeId) filters.employeeId = employeeId;
-      if (documentTypeId) filters.documentTypeId = documentTypeId;
-      
-      const options = { page, limit };
-      const result = await this.documentService.listPending(filters, options);
-      
-      return {
-        success: true,
-        message: "Documentos pendentes listados com sucesso",
-        data: result.items,
-        pagination: {
-          page,
-          limit,
-          total: result.total,
-          totalPages: Math.ceil(result.total / limit)
-        }
+      // Construir DTO com parâmetros validados
+      const dto: ListPendingDocumentsDto = {
+        page,
+        limit,
+        employeeId,
+        documentTypeId
       };
+      
+      // Usar nova lógica de pendentes do service
+      const result = await this.documentService.listPending(dto);
+      
+      return result;
     } catch (error) {
       throw error;
     }

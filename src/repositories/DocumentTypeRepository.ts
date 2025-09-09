@@ -1,7 +1,7 @@
 import { Injectable } from "@tsed/di";
-import { MongooseModel } from "@tsed/mongoose";
-import { DocumentType } from "../models/DocumentType";
 import { Model } from "@tsed/mongoose";
+import { DocumentType } from "../models/DocumentType";
+import { Model as MongooseModel } from "mongoose";
 
 /**
  * Repositório de dados para a entidade DocumentType
@@ -92,7 +92,7 @@ export class DocumentTypeRepository {
       return null;
     }
     // Busca case-insensitive por nome exato, apenas registros ativos
-    return this.documentTypeModel.findOne({ 
+    return await this.documentTypeModel.findOne({ 
       name: new RegExp(`^${trimmed}$`, "i"),
       isActive: { $ne: false } // considera true ou undefined como ativo
     }).exec();

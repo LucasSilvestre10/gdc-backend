@@ -5,6 +5,11 @@ import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository";
 import { EmployeeRepository } from "../repositories/EmployeeRepository";
 import { Document, DocumentStatus } from "../models/Document";
 import { BadRequest, NotFound } from "@tsed/exceptions";
+import { 
+    ListPendingDocumentsDto, 
+    PendingDocumentResponseDto, 
+    PendingDocumentsListResponseDto 
+} from "../dtos/documentDTO";
 
 /**
  * Serviço de negócios para gerenciamento de documentos
@@ -105,42 +110,148 @@ export class DocumentService {
     }
 
     /**
-     * Lista documentos com status 'pending'
-     * @param filter - Filtros opcionais (employeeId, documentTypeId)
-     * @param opts - Opções de paginação
-     * @returns Promise<{ items: Document[]; total: number }> - Lista paginada de documentos pendentes
-     * @throws BadRequest - Se IDs de filtro são malformados
+     * Lista documentos pendentes usando lógica de negócio avançada (Dia 5)
+     * 
+     * Lógica de "Pendentes":
+     * 1. Busca colaboradores ativos (com filtro opcional por employeeId)
+     * 2. Para cada colaborador, identifica tipos de documento obrigatórios vinculados
+     * 3. Busca documentos já enviados (status SENT) pelo colaborador
+     * 4. Calcula diferença: tipos obrigatórios - tipos já enviados = tipos pendentes
+     * 5. Cria "documentos virtuais" representando as pendências
+     * 6. Aplica paginação nos resultados finais
+     * 
+     * Funcionalidades:
+     * - Lógica no service (escolhida em vez de aggregation MongoDB)
+     * - Filtros opcionais por employeeId e documentTypeId
+     * - Paginação completa com metadados
+     * - Performance otimizada com Sets para lookup
+     * - Validação rigorosa de parâmetros de entrada
+     * 
+     * @param dto - Filtros de busca e opções de paginação
+     * @returns Promise<PendingDocumentsListResponseDto> - Lista paginada de documentos pendentes
+     * @throws BadRequest - Se parâmetros são inválidos
      */
-    async listPending(
-        filter: {
-            employeeId?: string;
-            documentTypeId?: string;
-        } = {},
-        opts: { page?: number; limit?: number } = {}
-    ): Promise<{ items: Document[]; total: number }> {
-        // Valida formato dos ObjectIds nos filtros, se fornecidos
-        if (filter.employeeId && !Types.ObjectId.isValid(filter.employeeId)) {
-            throw new BadRequest("Invalid employeeId format in filter");
+    async listPending(dto: ListPendingDocumentsDto): Promise<PendingDocumentsListResponseDto> {
+        const { page = 1, limit = 10, employeeId, documentTypeId } = dto;
+        
+        // Validar parâmetros de entrada
+        if (employeeId && !Types.ObjectId.isValid(employeeId)) {
+            throw new BadRequest("employeeId inválido - deve ser um ObjectId válido");
+        }
+        
+        if (documentTypeId && !Types.ObjectId.isValid(documentTypeId)) {
+            throw new BadRequest("documentTypeId inválido - deve ser um ObjectId válido");
         }
 
-        if (filter.documentTypeId && !Types.ObjectId.isValid(filter.documentTypeId)) {
-            throw new BadRequest("Invalid documentTypeId format in filter");
+        if (page < 1) {
+            throw new BadRequest("page deve ser maior que 0");
         }
 
-        // Constrói o filtro com status 'pending' e converte IDs para ObjectId se necessário
-        const searchFilter: any = {
-            status: 'pending'
+        if (limit < 1 || limit > 100) {
+            throw new BadRequest("limit deve estar entre 1 e 100");
+        }
+
+        // ETAPA 1: Buscar colaboradores ativos (com filtro opcional)
+        const employeeFilter: any = {};
+        if (employeeId) {
+            employeeFilter._id = employeeId;
+        }
+
+        const employeesData = await this.employeeRepository.list(employeeFilter, { page: 1, limit: 1000 });
+        const employees = employeesData.items;
+
+        if (employees.length === 0) {
+            return {
+                documents: [],
+                total: 0,
+                page,
+                totalPages: 0,
+                limit
+            };
+        }
+
+        // ETAPA 2: Processar cada colaborador para identificar pendências
+        const allPendingDocuments: PendingDocumentResponseDto[] = [];
+
+        for (const employee of employees) {
+            // Verificar se colaborador tem tipos obrigatórios vinculados
+            if (!employee.requiredDocumentTypes || employee.requiredDocumentTypes.length === 0) {
+                continue; // Colaborador sem tipos obrigatórios - pular
+            }
+
+            // ETAPA 2a: Buscar tipos obrigatórios do colaborador (apenas ativos)
+            const requiredTypeIds = employee.requiredDocumentTypes.map((id: any) => id.toString());
+            const requiredTypes = await this.documentTypeRepository.findByIds(requiredTypeIds);
+
+            if (requiredTypes.length === 0) {
+                continue; // Todos tipos obrigatórios foram removidos - pular
+            }
+
+            // ETAPA 2b: Aplicar filtro por documentTypeId se fornecido
+            const filteredRequiredTypes = documentTypeId 
+                ? requiredTypes.filter(type => type._id?.toString() === documentTypeId)
+                : requiredTypes;
+
+            if (filteredRequiredTypes.length === 0) {
+                continue; // Nenhum tipo atende ao filtro - pular
+            }
+
+            // ETAPA 2c: Buscar documentos já enviados pelo colaborador
+            const sentDocumentsData = await this.documentRepository.list({
+                employeeId: employee._id?.toString(),
+                status: DocumentStatus.SENT
+            }, { page: 1, limit: 1000 });
+
+            // ETAPA 2d: Criar Set dos tipos já enviados para lookup eficiente
+            const sentTypeIds = new Set(
+                sentDocumentsData.items.map((doc: any) => doc.documentTypeId?.toString())
+            );
+
+            // ETAPA 2e: Identificar tipos pendentes (obrigatórios - enviados)
+            const pendingTypes = filteredRequiredTypes.filter(
+                type => !sentTypeIds.has(type._id?.toString())
+            );
+
+            // ETAPA 2f: Criar "documentos virtuais" para cada tipo pendente
+            for (const pendingType of pendingTypes) {
+                const pendingDocument: PendingDocumentResponseDto = {
+                    employeeId: employee._id?.toString() || '',
+                    employeeName: employee.name || '',
+                    employeeDocument: employee.document || '',
+                    documentTypeId: pendingType._id?.toString() || '',
+                    documentTypeName: pendingType.name || '',
+                    status: DocumentStatus.PENDING,
+                    isPending: true,
+                    createdAt: pendingType.createdAt || new Date(),
+                    updatedAt: new Date()
+                };
+
+                allPendingDocuments.push(pendingDocument);
+            }
+        }
+
+        // ETAPA 3: Ordenar resultados por nome do colaborador e tipo de documento
+        allPendingDocuments.sort((a, b) => {
+            const employeeComparison = a.employeeName.localeCompare(b.employeeName);
+            if (employeeComparison !== 0) return employeeComparison;
+            return a.documentTypeName.localeCompare(b.documentTypeName);
+        });
+
+        // ETAPA 4: Aplicar paginação
+        const total = allPendingDocuments.length;
+        const skip = (page - 1) * limit;
+        const paginatedDocuments = allPendingDocuments.slice(skip, skip + limit);
+
+        // ETAPA 5: Calcular metadados de paginação
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            documents: paginatedDocuments,
+            total,
+            page,
+            totalPages,
+            limit
         };
-
-        if (filter.employeeId) {
-            searchFilter.employeeId = new Types.ObjectId(filter.employeeId);
-        }
-
-        if (filter.documentTypeId) {
-            searchFilter.documentTypeId = new Types.ObjectId(filter.documentTypeId);
-        }
-
-        return await this.documentRepository.list(searchFilter, opts);
     }
 
     /**
