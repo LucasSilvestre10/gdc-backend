@@ -65,6 +65,7 @@ export class DocumentTypeService {
     async list(
         filter: {
             name?: string;
+            status?: 'active' | 'inactive' | 'all';
         } = {},
         opts: { page?: number; limit?: number } = {}
     ): Promise<{ items: DocumentType[]; total: number }> {

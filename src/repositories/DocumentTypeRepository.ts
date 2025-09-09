@@ -156,7 +156,7 @@ export class DocumentTypeRepository {
    */
   async list(
     filter: Record<string, any> = {},
-    options: { page?: number; limit?: number } = {}
+    options: { page?: number; limit?: number; includeInactive?: boolean } = {}
   ): Promise<{ items: DocumentType[]; total: number }> {
     try {
       const page = Math.max(1, options.page ?? 1);
@@ -180,18 +180,28 @@ export class DocumentTypeRepository {
         }
       }
       
+      // Processa filtro de status (ativo/inativo/todos)
+      if (cleanFilter.status) {
+        if (cleanFilter.status === 'active') {
+          processedFilter.isActive = true;
+        } else if (cleanFilter.status === 'inactive') {
+          processedFilter.isActive = false;
+        }
+        // Se status === 'all', não adiciona filtro de isActive (traz todos)
+      } else {
+        // Se não foi especificado status, aplica filtro ativo por padrão
+        processedFilter.isActive = true;
+      }
+      
       // Adiciona outros filtros que não são especiais
       Object.entries(cleanFilter).forEach(([key, value]) => {
-        if (key !== 'name') {
+        if (key !== 'name' && key !== 'status') {
           processedFilter[key] = value;
         }
       });
       
-      // Sempre aplica filtro de registros ativos, mesmo quando filter está vazio
-      const activeFilter = { 
-        ...processedFilter, // Filtros processados (name com regex, outros normais)
-        isActive: true // Simplificado: busca apenas registros explicitamente ativos
-      };
+      // Usa o filtro processado
+      const activeFilter = processedFilter;
 
 
 

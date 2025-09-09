@@ -1,7 +1,7 @@
 import { Controller } from "@tsed/di";
 import { Get, Post, Put, Delete } from "@tsed/schema";
 import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
-import { Returns, Summary, Description } from "@tsed/schema";
+import { Returns, Summary, Description, Example } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { 
   CreateDocumentTypeDto, 
@@ -38,6 +38,10 @@ export class DocumentTypesController {
   @Description("Cria um novo tipo de documento no sistema")
   @Returns(201, Object)
   @Returns(400, Object)
+  @Example({
+    name: "CPF",
+    description: "Cadastro de Pessoa Física"
+  })
   async create(@BodyParams() createDto: CreateDocumentTypeDto) {
     try {
       const documentType = await this.documentTypeService.create(createDto);
@@ -54,24 +58,49 @@ export class DocumentTypesController {
 
 
   /**
-   * Lista todos os tipos de documento com paginação opcional.
+   * Lista todos os tipos de documento com paginação e filtros.
    * @route GET /document-types
-   * @query page (número da página)
-   * @query limit (itens por página)
+   * @query page (número da página - padrão: 1)
+   * @query limit (itens por página - padrão: 10)
+   * @query name (filtro por nome - busca parcial case-insensitive)
+   * @query status (filtro status: "active" | "inactive" | "all" - padrão: "active")
    * @returns 200 - Lista paginada de tipos de documento
    */
   @Get("/")
   @Summary("Listar tipos de documento")
-  @Description("Lista todos os tipos de documento com paginação opcional")
+  @Description("Lista tipos de documento com filtros: name (busca parcial), status (active/inactive/all). Por padrão retorna apenas registros ativos.")
   @Returns(200, Array)
+  @Example({
+    success: true,
+    data: [
+      {
+        _id: "507f1f77bcf86cd799439011",
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+        isActive: true,
+        createdAt: "2023-07-21T10:30:00.000Z",
+        updatedAt: "2023-07-21T10:30:00.000Z"
+      }
+    ],
+    pagination: {
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1
+    }
+  })
   async list(
     @QueryParams("page") page: number = 1,
     @QueryParams("limit") limit: number = 10,
-    @QueryParams("name") name?: string
+    @QueryParams("name") name?: string,
+    @QueryParams("status") status?: 'active' | 'inactive' | 'all'
   ) {
     try {
+      // Define "active" como padrão se nenhum status for fornecido
+      const defaultStatus = status || 'active';
+      
       const result = await this.documentTypeService.list(
-        { name },
+        { name, status: defaultStatus },
         { page, limit }
       );
       
@@ -137,6 +166,10 @@ export class DocumentTypesController {
   @Returns(200, Object)
   @Returns(404, Object)
   @Returns(400, Object)
+  @Example({
+    name: "RG",
+    description: "Registro Geral"
+  })
   async update(
     @PathParams("id") id: string,
     @BodyParams() updateDto: UpdateDocumentTypeDto

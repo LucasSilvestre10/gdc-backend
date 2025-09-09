@@ -1,9 +1,13 @@
 import { Property, Required, Default } from "@tsed/schema";
-import { Model, ObjectID } from "@tsed/mongoose";
+import { Model, ObjectID, Schema } from "@tsed/mongoose";
 
-@Model()
+@Model({
+  schemaOptions: {
+    versionKey: false, // Remove o __v
+    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+  },
+})
 export class DocumentType {
-
   @Required()
   @Property(String)
   name!: string;
@@ -14,12 +18,6 @@ export class DocumentType {
   @Default(true)
   @Property(Boolean)
   isActive!: boolean;
-
-  @Property(Date)
-  createdAt?: Date;
-
-  @Property(Date)
-  updatedAt?: Date;
 
   @Property(Date)
   deletedAt?: Date;
