@@ -1,4 +1,4 @@
-import { Property, Required } from "@tsed/schema";
+import { Property, Required, Default } from "@tsed/schema";
 import { Model, ObjectID } from "@tsed/mongoose";
 import { Employee } from "./Employee";
 import { DocumentType } from "./DocumentType";
@@ -29,4 +29,17 @@ export class Document {
   @Required()
   @Property(ObjectID)
   documentTypeId!: ObjectID;
+
+  @Default(true)
+  @Property(Boolean)
+  isActive!: boolean;
+
+  @Property(Date)
+  createdAt?: Date;
+
+  @Property(Date)
+  updatedAt?: Date;
+
+  @Property(Date)
+  deletedAt?: Date;
 }
