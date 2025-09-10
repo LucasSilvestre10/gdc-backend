@@ -1,29 +1,40 @@
 import { Property, Required, Enum } from "@tsed/schema";
 
 export enum DocumentStatus {
-  PENDING = "pending",
-  SENT = "sent"
+  PENDING = "PENDING",
+  SENT = "SENT"
 }
 
-export class CreateDocumentDto {
-  @Required()
-  @Property()
-  name!: string;
-
-  @Required()
-  @Property()
-  employeeId!: string;
-
+// DTO simplificado para MVP - apenas representação textual
+export class SendDocumentDto {
   @Required()
   @Property()
   documentTypeId!: string;
+
+  @Required()
+  @Property()
+  value!: string; // Representação textual do documento (CPF: "123.456.789-01", RG: "12.345.678-9")
 
   @Property()
   @Enum(DocumentStatus)
   status?: DocumentStatus = DocumentStatus.SENT;
 }
 
-export class ListPendingDocumentsDto {
+// DTO para atualização de documento (MVP)
+export class UpdateDocumentDto {
+  @Property()
+  value?: string; // Atualizar valor textual
+
+  @Property()
+  @Enum(DocumentStatus)
+  status?: DocumentStatus;
+}
+
+// DTO para filtros de consulta de documentos
+export class DocumentFilterDto {
+  @Property()
+  status?: 'active' | 'inactive' | 'all' = 'all';
+
   @Property()
   page?: number = 1;
 
@@ -71,22 +82,58 @@ export class PendingDocumentResponseDto {
   updatedAt!: Date;
 }
 
+// DTO de resposta para documento enviado (MVP)
+export class DocumentResponseDto {
+  @Property()
+  id!: string;
+
+  @Property()
+  value!: string; // Valor textual do documento
+
+  @Property()
+  @Enum(DocumentStatus)
+  status!: DocumentStatus;
+
+  @Property()
+  documentType!: {
+    id: string;
+    name: string;
+  };
+
+  @Property()
+  employee!: {
+    id: string;
+    name: string;
+  };
+
+  @Property()
+  active!: boolean;
+
+  @Property()
+  createdAt!: Date;
+
+  @Property()
+  updatedAt?: Date;
+
+  @Property()
+  deletedAt?: Date;
+}
+
 /**
  * DTO de resposta para listagem paginada de documentos pendentes
  */
 export class PendingDocumentsListResponseDto {
+  @Property()
+  success!: boolean;
+
   @Property({ type: PendingDocumentResponseDto, collectionType: Array })
-  documents!: PendingDocumentResponseDto[];
+  data!: PendingDocumentResponseDto[];
 
   @Property()
-  total!: number;
-
-  @Property()
-  page!: number;
-
-  @Property()
-  totalPages!: number;
-
-  @Property()
-  limit!: number;
+  pagination!: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
