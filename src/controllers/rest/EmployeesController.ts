@@ -3,6 +3,8 @@ import { Get, Post, Put, Patch, Delete } from "@tsed/schema";
 import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
+import { BadRequest, NotFound, Conflict, UnprocessableEntity } from "@tsed/exceptions";
+import { ErrorHandler } from "../../middleware/GlobalErrorHandler";
 import { 
     CreateEmployeeDto, 
     UpdateEmployeeDto, 
@@ -43,6 +45,8 @@ import { EmployeeService } from "../../services/EmployeeService";
 export class EmployeesController {
     @Inject()
     private employeeService!: EmployeeService;
+
+
 
     /**
      * @endpoint POST /employees/
@@ -123,7 +127,7 @@ export class EmployeesController {
      */
     @Get("/search") 
     @Summary("Buscar colaboradores por nome ou CPF")
-    @Description("Busca colaboradores por nome (case-insensitive) ou CPF (busca exata). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
+    @Description("\"Query\" Busca colaboradores por nome (case-insensitive) ou CPF (busca exata). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, PaginatedResponseDto)
     async searchEmployees(
         @QueryParams("query") query: string,
@@ -179,26 +183,16 @@ export class EmployeesController {
     @Description("Retorna os dados de um colaborador específico")
     @Returns(200, Object)
     @Returns(404, Object)
+    @Returns(400, Object)
     async findById(@PathParams("id") id: string) {
-        try {
-            const employee = await this.employeeService.findById(id);
-            
-            if (!employee) {
-                return {
-                    success: false,
-                    message: "Colaborador não encontrado",
-                    data: null
-                };
-            }
-
-            return {
-                success: true,
-                message: "Colaborador encontrado com sucesso",
-                data: employee
-            };
-        } catch (error) {
-            throw error;
+        const employee = await this.employeeService.findById(id);
+        
+        if (!employee) {
+            // Lança exceção NotFound que será tratada pelo TS.ED
+            throw new NotFound("Colaborador não encontrado");
         }
+
+        return ErrorHandler.successResponse(employee, "Colaborador encontrado com sucesso");
     }
 
     /**
@@ -213,29 +207,19 @@ export class EmployeesController {
     @Description("Atualiza os dados de um colaborador")
     @Returns(200, Object)
     @Returns(404, Object)
+    @Returns(400, Object)
+    @Returns(409, Object)
     async update(
         @PathParams("id") id: string,
         @BodyParams() updateDto: UpdateEmployeeDto
     ) {
-        try {
-            const employee = await this.employeeService.updateEmployee(id, updateDto);
-            
-            if (!employee) {
-                return {
-                    success: false,
-                    message: "Colaborador não encontrado",
-                    data: null
-                };
-            }
-
-            return {
-                success: true,
-                message: "Colaborador atualizado com sucesso",
-                data: employee
-            };
-        } catch (error) {
-            throw error;
+        const employee = await this.employeeService.updateEmployee(id, updateDto);
+        
+        if (!employee) {
+            throw new NotFound("Colaborador não encontrado");
         }
+
+        return ErrorHandler.successResponse(employee, "Colaborador atualizado com sucesso");
     }
 
     /**
@@ -250,23 +234,13 @@ export class EmployeesController {
     @Description("Remove um colaborador do sistema (soft delete)")
     @Returns(200, Object)
     @Returns(404, Object)
+    @Returns(400, Object)
     async delete(@PathParams("id") id: string) {
-        try {
-            const deleted = await this.employeeService.delete(id);
-            if (!deleted) {
-                return {
-                    success: false,
-                    message: "Colaborador não encontrado"
-                };
-            }
-            return {
-                success: true,
-                message: "Colaborador removido com sucesso",
-                data: deleted
-            };
-        } catch (error) {
-            throw error;
+        const deleted = await this.employeeService.delete(id);
+        if (!deleted) {
+            throw new NotFound("Colaborador não encontrado");
         }
+        return ErrorHandler.successResponse(deleted, "Colaborador removido com sucesso");
     }
 
     /**
@@ -335,22 +309,16 @@ export class EmployeesController {
     @Summary("Enviar documento do colaborador")
     @Description("Envia um documento específico do colaborador")
     @Returns(201, Object)
+    @Returns(400, Object)
     @Returns(404, Object)
+    @Returns(409, Object)
     async sendDocument(
         @PathParams("id") id: string,
         @PathParams("documentTypeId") documentTypeId: string,
         @BodyParams("value") value: string
     ) {
-        try {
-            const document = await this.employeeService.sendDocument(id, documentTypeId, value);
-            return {
-                success: true,
-                message: "Documento enviado com sucesso",
-                data: document
-            };
-        } catch (error) {
-            throw error;
-        }
+        const document = await this.employeeService.sendDocument(id, documentTypeId, value);
+        return ErrorHandler.successResponse(document, "Documento enviado com sucesso");
     }
 
     /**
