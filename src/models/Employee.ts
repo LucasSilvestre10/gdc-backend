@@ -2,11 +2,13 @@ import { Property, Required, MinLength, MaxLength, Pattern, Default } from "@tse
 import { Model, ObjectID, Ref, Unique } from "@tsed/mongoose";
 import { DocumentType } from "./DocumentType";
 
-@Model()
+@Model({
+  schemaOptions: {
+    versionKey: false, // Remove o __v
+    timestamps: true, // Adiciona createdAt e updatedAt automaticamente
+  },
+})
 export class Employee {
-  /** Identificador único do colaborador */
-  @Property(ObjectID)
-  _id?: ObjectID;
 
   /** Nome do colaborador */
   @Required()
@@ -26,9 +28,24 @@ export class Employee {
   @Property(Date)
   hiredAt: Date = new Date();
 
-  /** Tipos de documentos obrigatórios para o colaborador */
-  @Property([Ref(DocumentType)])
-  requiredDocumentTypes: Ref<DocumentType>[] = [];
+  /** 
+   * Tipos de documentos obrigatórios para o colaborador
+   * Estrutura com metadata para suportar soft delete por vínculo
+   */
+  @Property([{
+    documentTypeId: { type: String, ref: 'DocumentType', required: true },
+    active: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now },
+    deletedAt: { type: Date, default: null }
+  }])
+  requiredDocumentTypes: Array<{
+    documentTypeId: Ref<DocumentType>;
+    active: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    deletedAt?: Date;
+  }> = [];
 
   /** Indica se o colaborador está ativo (soft delete) */
   @Default(true)

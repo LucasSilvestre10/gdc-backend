@@ -4,31 +4,44 @@ import { Employee } from "./Employee";
 import { DocumentType } from "./DocumentType";
 
 export enum DocumentStatus {
-  PENDING = "pending",
-  SENT = "sent"
+  PENDING = "PENDING",
+  SENT = "SENT"
 }
 
-@Model()
+/**
+ * Modelo Document simplificado para MVP
+ * 
+ * Representa apenas o valor textual do documento (string)
+ * Exemplos: CPF "123.456.789-01", RG "12.345.678-9", CNH "123456789"
+ * 
+ * Não há arquivos físicos - apenas representação textual
+ */
+@Model({
+  schemaOptions: {
+    versionKey: false,
+    timestamps: true,
+  },
+})
 export class Document {
-
-  @Property(ObjectID)
-  _id?: ObjectID;
-
+  /** Valor textual do documento (CPF, RG, CNH, etc.) */
   @Required()
   @Property(String)
-  name!: string;
+  value!: string;
 
+  /** Status do documento (SENT ou PENDING) */
   @Required()
   @Property(String)
-  status: DocumentStatus = DocumentStatus.PENDING;
+  status: DocumentStatus = DocumentStatus.SENT;
 
+  /** ID do colaborador proprietário do documento */
   @Required()
-  @Property(ObjectID)
-  employeeId!: ObjectID;
+  @Property(String)
+  employeeId!: string;
 
+  /** ID do tipo de documento */
   @Required()
-  @Property(ObjectID)
-  documentTypeId!: ObjectID;
+  @Property(String)
+  documentTypeId!: string;
 
   @Default(true)
   @Property(Boolean)
