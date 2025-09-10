@@ -1,5 +1,12 @@
 import { Injectable, Inject } from "@tsed/di";
-import { BadRequest } from "@tsed/exceptions";
+import { 
+  EmployeeNotFoundError, 
+  DocumentTypeNotFoundError, 
+  DuplicateEmployeeError,
+  InvalidObjectIdError,
+  ConflictError,
+  ValidationError
+} from "../exceptions";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { DocumentTypeRepository } from "../repositories/index.js";
 import { DocumentRepository } from "../repositories/DocumentRepository.js";
@@ -7,6 +14,7 @@ import { EmployeeDocumentTypeLinkRepository } from "../repositories/EmployeeDocu
 import { Employee } from "../models/Employee";
 import { DocumentType } from "../models/DocumentType";
 import { DocumentStatus } from "../models/Document";
+import { ValidationUtils } from "../utils/ValidationUtils.js";
 
 /**
  * Serviço de negócios para gerenciamento de colaboradores
@@ -69,7 +77,18 @@ export class EmployeeService {
    * @returns Promise com colaborador encontrado ou null
    */
   async findById(id: string): Promise<Employee | null> {
-    return this.employeeRepo.findById(id);
+    try {
+      // Valida formato do ObjectId
+      ValidationUtils.validateObjectId(id, 'ID do colaborador');
+      
+      return await this.employeeRepo.findById(id);
+    } catch (error: any) {
+      // Trata erros de cast do Mongoose
+      if (ValidationUtils.isCastError(error)) {
+        throw new InvalidObjectIdError('ID do colaborador');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -92,7 +111,7 @@ export class EmployeeService {
     // Verificar se CPF já existe
     const existingEmployee = await this.employeeRepo.findByDocument(dto.document);
     if (existingEmployee) {
-      throw new BadRequest(`Já existe um colaborador cadastrado com o CPF ${dto.document}`);
+      throw new DuplicateEmployeeError(dto.document);
     }
 
     // Criar colaborador
@@ -119,14 +138,14 @@ export class EmployeeService {
   ): Promise<void> {
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     for (const reqDoc of requiredDocuments) {
       // Buscar o tipo de documento
       const documentType = await this.documentTypeRepo.findById(reqDoc.documentTypeId);
       if (!documentType) {
-        throw new BadRequest(`Tipo de documento ${reqDoc.documentTypeId} não encontrado`);
+        throw new DocumentTypeNotFoundError(reqDoc.documentTypeId);
       }
 
       // Verificar se é tipo CPF
@@ -135,7 +154,7 @@ export class EmployeeService {
       if (isCpfType) {
         // Validar valor do CPF se fornecido
         if (reqDoc.value && reqDoc.value !== employee.document) {
-          throw new BadRequest(
+          throw new ValidationError(
             `CPF fornecido (${reqDoc.value}) não confere com o CPF de identificação do colaborador (${employee.document})`
           );
         }
@@ -186,6 +205,9 @@ export class EmployeeService {
    * @returns Promise com colaborador atualizado ou null se não encontrado
    */
   async updateEmployee(id: string, dto: Partial<Employee>): Promise<Employee | null> {
+    // Valida formato do ObjectId
+    ValidationUtils.validateObjectId(id, 'ID do colaborador');
+    
     // TODO: Adicionar validação de CPF único se document estiver no DTO
     // if (dto.document) { ... }
     
@@ -249,13 +271,13 @@ export class EmployeeService {
 
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     // Verificar se todos os tipos de documento existem
     const documentTypes = await this.documentTypeRepo.findByIds(typeIds);
     if (documentTypes.length !== typeIds.length) {
-      throw new BadRequest("Um ou mais tipos de documento não foram encontrados");
+      throw new DocumentTypeNotFoundError();
     }
 
     for (const documentTypeId of typeIds) {
@@ -407,8 +429,11 @@ export class EmployeeService {
   async delete(id: string): Promise<Employee | null> {
     // Validação de entrada
     if (!id?.trim()) {
-      throw new BadRequest("ID is required");
+      throw new ValidationError("ID é obrigatório");
     }
+    
+    // Valida formato do ObjectId
+    ValidationUtils.validateObjectId(id, 'ID do colaborador');
 
     // Verifica existência e status ativo do colaborador
     const employee = await this.employeeRepo.findById(id);
@@ -448,7 +473,7 @@ export class EmployeeService {
   async restore(id: string): Promise<Employee | null> {
     // Validação de entrada
     if (!id?.trim()) {
-      throw new BadRequest("ID is required");
+      throw new ValidationError("ID é obrigatório");
     }
 
     // Executa restauração (não precisa validar status atual)
@@ -466,7 +491,7 @@ export class EmployeeService {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     const statusFilter = status as 'active' | 'inactive' | 'all';
@@ -492,13 +517,13 @@ export class EmployeeService {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     // Valida tipo de documento
     const documentType = await this.documentTypeRepo.findById(documentTypeId);
     if (!documentType) {
-      throw new BadRequest("Tipo de documento não encontrado");
+      throw new DocumentTypeNotFoundError(documentTypeId);
     }
 
     // Restaura ou cria vínculo
@@ -525,7 +550,7 @@ export class EmployeeService {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     // Verifica se há tipos de documento vinculados
@@ -669,16 +694,20 @@ export class EmployeeService {
    * @returns Promise<Document> - Documento criado/atualizado
    */
   async sendDocument(employeeId: string, documentTypeId: string, value: string): Promise<any> {
+    // Valida formato dos ObjectIds
+    ValidationUtils.validateObjectId(employeeId, 'ID do colaborador');
+    ValidationUtils.validateObjectId(documentTypeId, 'ID do tipo de documento');
+
     // Verifica se colaborador existe
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
-      throw new BadRequest("Colaborador não encontrado");
+      throw new EmployeeNotFoundError(employeeId);
     }
 
     // Verifica se tipo de documento existe
     const documentType = await this.documentTypeRepo.findById(documentTypeId);
     if (!documentType) {
-      throw new BadRequest("Tipo de documento não encontrado");
+      throw new DocumentTypeNotFoundError(documentTypeId);
     }
 
     // Verifica se há vínculo ativo entre colaborador e tipo de documento
@@ -688,7 +717,7 @@ export class EmployeeService {
     );
 
     if (!hasActiveLink) {
-      throw new BadRequest("Tipo de documento não está vinculado ao colaborador");
+      throw new ValidationError("Tipo de documento não está vinculado ao colaborador");
     }
 
     // Verifica se já existe documento para este tipo e colaborador
