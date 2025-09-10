@@ -1,5 +1,5 @@
 import { Injectable } from "@tsed/di";
-import { Model } from "@tsed/mongoose";
+import { MongooseService } from "@tsed/mongoose";
 import { Document } from "../models/Document";
 import { Model as MongooseModel } from "mongoose";
 
@@ -20,11 +20,19 @@ import { Model as MongooseModel } from "mongoose";
  */
 @Injectable()
 export class DocumentRepository {
+  private documentModel: MongooseModel<Document>;
+
   /**
-   * Injeta o modelo Mongoose do Document através do decorator @Model
-   * @param documentModel - Modelo Mongoose para operações de banco de dados
+   * Injeta o MongooseService e obtém o modelo Document
+   * @param mongooseService - Serviço do Mongoose para acesso aos modelos
    */
-  constructor(@Model(new Document()) private documentModel: MongooseModel<Document>) {}
+  constructor(private mongooseService: MongooseService) {
+    console.log('DocumentRepository constructor - Getting model from MongooseService');
+    // Obtém o modelo que foi registrado pelo @Model() na classe Document
+    const connection = this.mongooseService.get();
+    this.documentModel = connection!.model<Document>("Document");
+    console.log('DocumentRepository constructor - Model obtained:', !!this.documentModel);
+  }
 
   /**
    * Cria um novo documento no sistema
@@ -201,5 +209,15 @@ export class DocumentRepository {
       },
       { new: true } // Retorna documento atualizado
     );
+  }
+
+  /**
+   * Busca documentos por valor textual
+   */
+  async findByValue(value: string): Promise<Document[]> {
+    return await this.documentModel.find({
+      value: { $regex: value, $options: 'i' },
+      isActive: { $ne: false }
+    }).exec();
   }
 }

@@ -1,4 +1,4 @@
-import { Model } from "@tsed/mongoose";
+import { MongooseService } from "@tsed/mongoose";
 import { Injectable } from "@tsed/di";
 import { Employee } from "../models/Employee";
 import { Model as MongooseModel } from "mongoose";
@@ -20,11 +20,19 @@ import { Model as MongooseModel } from "mongoose";
  */
 @Injectable()
 export class EmployeeRepository {
+    private employeeModel: MongooseModel<Employee>;
+
     /**
-     * Injeta o modelo Mongoose do Employee através do decorator @Model
-     * @param employeeModel - Modelo Mongoose para operações de banco de dados
+     * Injeta o MongooseService e obtém o modelo Employee
+     * @param mongooseService - Serviço do Mongoose para acesso aos modelos
      */
-    constructor(@Model(new Employee()) private employeeModel: MongooseModel<Employee>) { }
+    constructor(private mongooseService: MongooseService) {
+        console.log('EmployeeRepository constructor - Getting model from MongooseService');
+        // Obtém o modelo que foi registrado pelo @Model() na classe Employee
+        const connection = this.mongooseService.get();
+        this.employeeModel = connection!.model<Employee>("Employee");
+        console.log('EmployeeRepository constructor - Model obtained:', !!this.employeeModel);
+    }
 
     /**
      * Cria um novo colaborador no sistema
@@ -243,5 +251,66 @@ export class EmployeeRepository {
             document,                     // Busca pelo CPF informado
             isActive: { $ne: false }      // Apenas colaboradores ativos
         });
+    }
+
+    /**
+     * Busca colaboradores por nome (case-insensitive)
+     * 
+     * @param query - Termo de busca para o nome
+     * @param filters - Filtros adicionais (status, etc.)
+     * @returns Promise<Employee[]> - Lista de colaboradores encontrados
+     */
+    async searchByName(query: string, filters: any = {}): Promise<Employee[]> {
+        const matchQuery: any = {
+            name: { $regex: query, $options: 'i' }, // Case-insensitive
+            isActive: { $ne: false }
+        };
+
+        // Aplicar filtro de status se especificado
+        if (filters.status === 'active') {
+            matchQuery.isActive = true;
+        } else if (filters.status === 'inactive') {
+            matchQuery.isActive = false;
+        }
+        // Para status === 'all' não aplica filtro adicional
+
+        return await this.employeeModel
+            .find(matchQuery)
+            .sort({ name: 1 })
+            .exec();
+    }
+
+    /**
+     * Busca colaboradores por nome ou CPF em uma única query (mais eficiente)
+     * 
+     * @param query - Termo de busca (nome ou CPF)
+     * @param filters - Filtros adicionais (status, etc.)
+     * @returns Promise<Employee[]> - Lista de colaboradores encontrados
+     */
+    async searchByNameOrCpf(query: string, filters: any = {}): Promise<Employee[]> {
+        const baseFilter: any = {
+            isActive: { $ne: false }
+        };
+
+        // Aplicar filtro de status se especificado
+        if (filters.status === 'active') {
+            baseFilter.isActive = true;
+        } else if (filters.status === 'inactive') {
+            baseFilter.isActive = false;
+        }
+
+        // Query que busca por nome (case-insensitive) OU por CPF (exato)
+        const searchQuery = {
+            ...baseFilter,
+            $or: [
+                { name: { $regex: query, $options: 'i' } },  // Nome case-insensitive
+                { document: query }                          // CPF exato
+            ]
+        };
+
+        return await this.employeeModel
+            .find(searchQuery)
+            .sort({ name: 1 })
+            .exec();
     }
 }
