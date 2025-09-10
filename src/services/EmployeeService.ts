@@ -265,6 +265,12 @@ export class EmployeeService {
   async linkDocumentTypes(employeeId: string, typeIds: string[]): Promise<void> {
     if (!typeIds?.length) return;
 
+    // Validar ObjectIds
+    ValidationUtils.validateObjectId(employeeId, 'ID do colaborador');
+    for (const typeId of typeIds) {
+      ValidationUtils.validateObjectId(typeId, 'ID do tipo de documento');
+    }
+
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
       throw new EmployeeNotFoundError(employeeId);
@@ -694,6 +700,9 @@ export class EmployeeService {
     ValidationUtils.validateObjectId(employeeId, 'ID do colaborador');
     ValidationUtils.validateObjectId(documentTypeId, 'ID do tipo de documento');
 
+    // Limpa formatação do valor do documento (remove pontos, hífens, etc.)
+    const cleanValue = ValidationUtils.cleanDocumentValue(value);
+
     // Verifica se colaborador existe
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -727,19 +736,210 @@ export class EmployeeService {
       // Atualiza documento existente
       const existingDoc = existingDocs[0];
       return await this.documentRepo.update((existingDoc as any)._id, {
-        value,
+        value: cleanValue,
         status: DocumentStatus.SENT,
         updatedAt: new Date()
       });
     } else {
       // Cria novo documento
       return await this.documentRepo.create({
-        value,
+        value: cleanValue,
         status: DocumentStatus.SENT,
         employeeId,
         documentTypeId,
         isActive: true
       });
     }
+  }
+
+  /**
+   * Enriquece dados de colaboradores com informações de documentação
+   * Usado para padronizar resposta em endpoints de busca/listagem
+   * 
+   * @param employees - Lista de colaboradores
+   * @returns Colaboradores com informações de documentação
+   */
+  async enrichEmployeesWithDocumentationInfo(employees: Employee[]): Promise<any[]> {
+    const enrichedEmployees = [];
+
+    for (const employee of employees) {
+      const employeeId = (employee as any)._id.toString();
+      
+      // Busca vínculos ativos (documentos obrigatórios)
+      const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+      
+      // Busca documentos enviados
+      const sentDocuments = await this.documentRepo.find({
+        employeeId,
+        status: DocumentStatus.SENT,
+        isActive: true
+      });
+
+      // Calcula estatísticas de documentação
+      const requiredCount = activeLinks.length;
+      const sentCount = sentDocuments.length;
+      const pendingCount = Math.max(0, requiredCount - sentCount);
+
+      enrichedEmployees.push({
+        id: (employee as any)._id,
+        name: employee.name,
+        document: employee.document,
+        hiredAt: employee.hiredAt,
+        isActive: employee.isActive,
+        createdAt: employee.createdAt,
+        updatedAt: employee.updatedAt,
+        // Informações de documentação adicionadas
+        documentationSummary: {
+          required: requiredCount,
+          sent: sentCount,
+          pending: pendingCount,
+          hasRequiredDocuments: requiredCount > 0,
+          isComplete: pendingCount === 0 && requiredCount > 0
+        }
+      });
+    }
+
+    return enrichedEmployees;
+  }
+
+  // ==========================================
+  // 🎯 MÉTODOS SOLID - SINGLE RESPONSIBILITY
+  // ==========================================
+
+  /**
+   * Busca apenas documentos ENVIADOS de um colaborador
+   * 
+   * SOLID: Single Responsibility - apenas documentos com status SENT
+   * 
+   * @param employeeId - ID do colaborador
+   * @returns Promise<DocumentDetailDto[]> - Lista de documentos enviados
+   */
+  async getSentDocuments(employeeId: string): Promise<any[]> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new EmployeeNotFoundError(employeeId);
+    }
+
+    // Busca apenas documentos enviados
+    const sentDocuments = await this.documentRepo.find({
+      employeeId,
+      status: DocumentStatus.SENT,
+      isActive: true
+    });
+
+    // Mapeia para DTO com informações do tipo
+    const result = [];
+    for (const doc of sentDocuments) {
+      const documentType = await this.documentTypeRepo.findById(doc.documentTypeId.toString());
+      
+      result.push({
+        id: (doc as any)._id,
+        documentType: {
+          id: (documentType as any)?._id || doc.documentTypeId,
+          name: documentType?.name || 'Tipo não encontrado',
+          description: documentType?.description || null
+        },
+        status: doc.status,
+        value: doc.value, // Valor já limpo
+        active: doc.isActive,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Busca apenas documentos PENDENTES de um colaborador
+   * 
+   * SOLID: Single Responsibility - apenas tipos obrigatórios sem documento enviado
+   * 
+   * @param employeeId - ID do colaborador
+   * @returns Promise<DocumentTypeDto[]> - Lista de tipos pendentes
+   */
+  async getPendingDocuments(employeeId: string): Promise<any[]> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new EmployeeNotFoundError(employeeId);
+    }
+
+    // Busca vínculos ativos
+    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    if (!activeLinks.length) {
+      return []; // Sem documentos obrigatórios
+    }
+
+    // Busca documentos já enviados
+    const sentDocuments = await this.documentRepo.find({
+      employeeId,
+      status: DocumentStatus.SENT,
+      isActive: true
+    });
+
+    // Mapeia IDs dos tipos já enviados
+    const sentTypeIds = new Set(
+      sentDocuments.map(doc => doc.documentTypeId.toString())
+    );
+
+    // Identifica tipos pendentes (obrigatórios mas não enviados)
+    const pendingTypes = [];
+    for (const link of activeLinks) {
+      const typeId = (link.documentTypeId as any)._id?.toString() || link.documentTypeId.toString();
+      
+      if (!sentTypeIds.has(typeId)) {
+        const documentType = await this.documentTypeRepo.findById(typeId);
+        
+        pendingTypes.push({
+          documentType: {
+            id: typeId,
+            name: documentType?.name || 'Tipo não encontrado',
+            description: documentType?.description || null
+          },
+          status: 'PENDING',
+          value: null,
+          active: link.active,
+          requiredSince: link.createdAt
+        });
+      }
+    }
+
+    return pendingTypes;
+  }
+
+  /**
+   * Overview completo da documentação de um colaborador
+   * 
+   * SOLID: Single Responsibility - combina enviados + pendentes para visão geral
+   * 
+   * @param employeeId - ID do colaborador
+   * @returns Promise<OverviewDto> - Overview completo
+   */
+  async getDocumentationOverview(employeeId: string): Promise<any> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new EmployeeNotFoundError(employeeId);
+    }
+
+    // Usa os métodos específicos (composição seguindo SOLID)
+    const sentDocuments = await this.getSentDocuments(employeeId);
+    const pendingDocuments = await this.getPendingDocuments(employeeId);
+
+    // Combina em um overview estruturado
+    const allDocuments = [
+      ...sentDocuments,
+      ...pendingDocuments
+    ];
+
+    return {
+      total: allDocuments.length,
+      sent: sentDocuments.length,
+      pending: pendingDocuments.length,
+      documents: allDocuments,
+      lastUpdated: new Date().toISOString()
+    };
   }
 }

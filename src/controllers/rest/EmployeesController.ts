@@ -17,6 +17,10 @@ import {
     EmployeeDocumentDto
 } from "../../dtos/employeeDTO";
 import { DocumentResponseDto } from "../../dtos/documentDTO";
+import { 
+    EmployeeSearchResponseDto,
+    EmployeeDocumentsResponseDto 
+} from "../../dtos/enrichedEmployeeDTO";
 import { EmployeeService } from "../../services/EmployeeService";
 
 /**
@@ -148,18 +152,13 @@ export class EmployeesController {
             const filters = { status, page, limit };
             const result = await this.employeeService.searchByNameOrCpf(query.trim(), filters);
             
-            return {
-                success: true,
-                message: "Busca realizada com sucesso",
-                data: result.items.map(emp => ({
-                    id: (emp as any)._id,
-                    name: emp.name,
-                    document: emp.document,
-                    hiredAt: emp.hiredAt,
-                    isActive: emp.isActive,
-                    createdAt: emp.createdAt,
-                    updatedAt: emp.updatedAt
-                })),
+            // Enriquece os dados com informações de documentação
+            const enrichedEmployees = await this.employeeService.enrichEmployeesWithDocumentationInfo(result.items);
+            
+            // Como o TS.ED está serializando como array, vamos trabalhar com isso
+            // O primeiro elemento do array será nosso objeto de dados principal
+            const responseObject = {
+                employees: enrichedEmployees,
                 pagination: {
                     page,
                     limit,
@@ -167,6 +166,8 @@ export class EmployeesController {
                     totalPages: Math.ceil(result.total / limit)
                 }
             };
+            
+            return ResponseHandler.success(responseObject, "Busca realizada com sucesso");
         } catch (error) {
             throw error;
         }
@@ -322,99 +323,117 @@ export class EmployeesController {
     }
 
     /**
-     * @endpoint GET /employees/:id/documents
-     * @description Lista todos os documentos do colaborador.
-     * @param id
-     * @param status - Filtro de status (active|inactive|all)
+     * @endpoint GET /employees/:id/documents/sent
+     * @description Lista apenas os documentos enviados do colaborador.
+     * @param id - ID do colaborador
      * @returns { success, data }
      */
-    @Get("/:id/documents")
-    @Summary("Listar documentos do colaborador")
-    @Description("Lista todos os documentos do colaborador. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
-    @Returns(200, Array)
+    @Get("/:id/documents/sent")
+    @Summary("Listar documentos enviados")
+    @Description("Lista apenas os documentos que foram enviados pelo colaborador (status: SENT)")
+    @Returns(200, Object)
     @Returns(404, Object)
-    async getEmployeeDocuments(
-        @PathParams("id") id: string,
-        @QueryParams("status") status: string = "all"
-    ) {
+    async getSentDocuments(@PathParams("id") id: string) {
         try {
-            const result = await this.employeeService.getEmployeeDocuments(id, status);
-            return {
-                success: true,
-                data: result.documents,
-                hasRequiredDocuments: result.hasRequiredDocuments,
-                message: result.message
+            const employee = await this.employeeService.findById(id);
+            if (!employee) {
+                throw new NotFound("Colaborador não encontrado");
+            }
+
+            const sentDocuments = await this.employeeService.getSentDocuments(id);
+            
+            const response = {
+                employee: {
+                    id: (employee as any)._id || id,
+                    name: employee.name
+                },
+                sentDocuments: {
+                    total: sentDocuments.length,
+                    documents: sentDocuments
+                }
             };
+
+            return ResponseHandler.success(response, "Documentos enviados listados com sucesso");
         } catch (error) {
             throw error;
         }
     }
 
     /**
-     * @endpoint GET /employees/:id/documents/status
-     * @description Retorna o status da documentação obrigatória do colaborador (enviados e pendentes).
-     * @param id
-     * @param status - Filtro de status (active|inactive|all)
+     * @endpoint GET /employees/:id/documents/pending  
+     * @description Lista apenas os documentos pendentes do colaborador.
+     * @param id - ID do colaborador
      * @returns { success, data }
      */
-    @Get("/:id/documents/status")
-    @Summary("Status da documentação do colaborador")
-    @Description("Retorna o status da documentação obrigatória do colaborador (enviados e pendentes). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
-    @Returns(200, DocumentationStatusResponseDto)
+    @Get("/:id/documents/pending")
+    @Summary("Listar documentos pendentes")
+    @Description("Lista apenas os documentos que estão pendentes de envio pelo colaborador (status: PENDING)")
+    @Returns(200, Object)
     @Returns(404, Object)
-    async getDocumentationStatus(
-        @PathParams("id") id: string,
-        @QueryParams("status") status: string = "all"
-    ) {
+    async getPendingDocuments(@PathParams("id") id: string) {
         try {
             const employee = await this.employeeService.findById(id);
             if (!employee) {
-                return {
-                    success: false,
-                    message: "Colaborador não encontrado",
-                    data: null
-                };
+                throw new NotFound("Colaborador não encontrado");
             }
 
-            const documentStatus = await this.employeeService.getDocumentationStatus(id);
+            const pendingDocuments = await this.employeeService.getPendingDocuments(id);
             
-            // Estrutura conforme especificação do fluxo da API
+            const response = {
+                employee: {
+                    id: (employee as any)._id || id,
+                    name: employee.name
+                },
+                pendingDocuments: {
+                    total: pendingDocuments.length,
+                    documents: pendingDocuments
+                }
+            };
+
+            return ResponseHandler.success(response, "Documentos pendentes listados com sucesso");
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
+     * @endpoint GET /employees/:id/documentation
+     * @description Retorna o overview completo da documentação do colaborador (enviados + pendentes).
+     * @param id - ID do colaborador
+     * @returns { success, data }
+     */
+    @Get("/:id/documentation")
+    @Summary("Overview da documentação do colaborador")
+    @Description("Retorna visão completa da documentação obrigatória do colaborador, incluindo enviados e pendentes")
+    @Returns(200, DocumentationStatusResponseDto)
+    @Returns(404, Object)
+    async getDocumentationOverview(@PathParams("id") id: string) {
+        try {
+            const employee = await this.employeeService.findById(id);
+            if (!employee) {
+                throw new NotFound("Colaborador não encontrado");
+            }
+
+            const overview = await this.employeeService.getDocumentationOverview(id);
+            
             const response = {
                 employee: { 
                     id: (employee as any)._id || id, 
                     name: employee.name 
                 },
-                documentationStatus: {
-                    total: documentStatus.sent.length + documentStatus.pending.length,
-                    sent: documentStatus.sent.length,
-                    pending: documentStatus.pending.length,
-                    documents: [
-                        ...documentStatus.sent.map(type => ({
-                            type: { 
-                                id: (type as any)._id, 
-                                name: type.name 
-                            },
-                            status: "SENT",
-                            value: (type as any).documentValue || null,
-                            active: true
-                        })),
-                        ...documentStatus.pending.map(type => ({
-                            type: { 
-                                id: (type as any)._id, 
-                                name: type.name 
-                            },
-                            status: "PENDING",
-                            value: null,
-                            active: true
-                        }))
-                    ]
+                documentationOverview: {
+                    summary: {
+                        total: overview.total,
+                        sent: overview.sent,
+                        pending: overview.pending,
+                        isComplete: overview.pending === 0 && overview.total > 0,
+                        lastUpdated: overview.lastUpdated
+                    },
+                    documents: overview.documents
                 }
             };
-            
-            return {
-                success: true,
-                data: response
-            };
+
+            return ResponseHandler.success(response, "Overview da documentação obtido com sucesso");
         } catch (error) {
             throw error;
         }

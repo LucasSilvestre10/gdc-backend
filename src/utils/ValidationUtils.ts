@@ -45,4 +45,45 @@ export class ValidationUtils {
     static isCastError(error: any): boolean {
         return error.name === 'CastError' && error.kind === 'ObjectId';
     }
+
+    /**
+     * Remove formatação de documentos (pontos, hífens, espaços, parênteses, etc.)
+     * Mantém apenas números e letras
+     * @param value - Valor do documento com possível formatação
+     * @returns Valor limpo sem formatação
+     */
+    static cleanDocumentValue(value: string): string {
+        if (!value || typeof value !== 'string') {
+            return value;
+        }
+        
+        // Remove todos os caracteres que não sejam letras ou números
+        return value.replace(/[^a-zA-Z0-9]/g, '');
+    }
+
+    /**
+     * Formata um valor de documento para exibição
+     * Aplica formatação baseada no tipo de documento detectado
+     * @param value - Valor limpo do documento
+     * @param documentTypeName - Nome do tipo de documento (opcional)
+     * @returns Valor formatado para exibição
+     */
+    static formatDocumentForDisplay(value: string, documentTypeName?: string): string {
+        if (!value || typeof value !== 'string') {
+            return value;
+        }
+
+        // Se for CPF (11 dígitos numéricos)
+        if (/^\d{11}$/.test(value)) {
+            return value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+        }
+
+        // Se for RG (9 dígitos, última posição pode ser X)
+        if (/^\d{8}[\dX]$/i.test(value)) {
+            return value.replace(/(\d{2})(\d{3})(\d{3})([\dX])/, '$1.$2.$3-$4');
+        }
+
+        // Para outros tipos, retorna sem formatação
+        return value;
+    }
 }
