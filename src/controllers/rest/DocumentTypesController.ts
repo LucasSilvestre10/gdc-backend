@@ -3,6 +3,8 @@ import { Get, Post, Put, Delete } from "@tsed/schema";
 import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description, Example } from "@tsed/schema";
 import { Inject } from "@tsed/di";
+import { BadRequest, NotFound, Conflict, UnprocessableEntity } from "@tsed/exceptions";
+import { ErrorHandler } from "../../middleware/GlobalErrorHandler";
 import { 
   CreateDocumentTypeDto, 
   UpdateDocumentTypeDto 
@@ -38,21 +40,14 @@ export class DocumentTypesController {
   @Description("Cria um novo tipo de documento no sistema")
   @Returns(201, Object)
   @Returns(400, Object)
+  @Returns(409, Object)
   @Example({
     name: "CPF",
     description: "Cadastro de Pessoa Física"
   })
   async create(@BodyParams() createDto: CreateDocumentTypeDto) {
-    try {
-      const documentType = await this.documentTypeService.create(createDto);
-      return {
-        success: true,
-        message: "Tipo de documento criado com sucesso",
-        data: documentType
-      };
-    } catch (error) {
-      throw error;
-    }
+    const documentType = await this.documentTypeService.create(createDto);
+    return ErrorHandler.successResponse(documentType, "Tipo de documento criado com sucesso");
   }
 
 
@@ -95,28 +90,24 @@ export class DocumentTypesController {
     @QueryParams("name") name?: string,
     @QueryParams("status") status?: 'active' | 'inactive' | 'all'
   ) {
-    try {
-      // Define "active" como padrão se nenhum status for fornecido
-      const defaultStatus = status || 'active';
-      
-      const result = await this.documentTypeService.list(
-        { name, status: defaultStatus },
-        { page, limit }
-      );
-      
-      return {
-        success: true,
-        data: result.items,
-        pagination: {
-          page,
-          limit,
-          total: result.total,
-          totalPages: Math.ceil(result.total / limit)
-        }
-      };
-    } catch (error) {
-      throw error;
-    }
+    // Define "active" como padrão se nenhum status for fornecido
+    const defaultStatus = status || 'active';
+    
+    const result = await this.documentTypeService.list(
+      { name, status: defaultStatus },
+      { page, limit }
+    );
+    
+    return {
+      success: true,
+      data: result.items,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / limit)
+      }
+    };
   }
 
   /**
@@ -131,23 +122,13 @@ export class DocumentTypesController {
   @Description("Retorna os dados de um tipo de documento específico")
   @Returns(200, Object)
   @Returns(404, Object)
+  @Returns(400, Object)
   async findById(@PathParams("id") id: string) {
-    try {
-      const documentType = await this.documentTypeService.findById(id);
-      if (!documentType) {
-        return {
-          success: false,
-          message: "Tipo de documento não encontrado",
-          data: null
-        };
-      }
-      return {
-        success: true,
-        data: documentType
-      };
-    } catch (error) {
-      throw error;
+    const documentType = await this.documentTypeService.findById(id);
+    if (!documentType) {
+      throw new NotFound("Tipo de documento não encontrado");
     }
+    return ErrorHandler.successResponse(documentType, "Tipo de documento encontrado com sucesso");
   }
 
 
@@ -166,6 +147,7 @@ export class DocumentTypesController {
   @Returns(200, Object)
   @Returns(404, Object)
   @Returns(400, Object)
+  @Returns(409, Object)
   @Example({
     name: "RG",
     description: "Registro Geral"
@@ -174,23 +156,11 @@ export class DocumentTypesController {
     @PathParams("id") id: string,
     @BodyParams() updateDto: UpdateDocumentTypeDto
   ) {
-    try {
-      const documentType = await this.documentTypeService.update(id, updateDto);
-      if (!documentType) {
-        return {
-          success: false,
-          message: "Tipo de documento não encontrado",
-          data: null
-        };
-      }
-      return {
-        success: true,
-        message: "Tipo de documento atualizado com sucesso",
-        data: documentType
-      };
-    } catch (error) {
-      throw error;
+    const documentType = await this.documentTypeService.update(id, updateDto);
+    if (!documentType) {
+      throw new NotFound("Tipo de documento não encontrado");
     }
+    return ErrorHandler.successResponse(documentType, "Tipo de documento atualizado com sucesso");
   }
 
   /**
@@ -205,23 +175,13 @@ export class DocumentTypesController {
   @Description("Remove um tipo de documento do sistema (soft delete)")
   @Returns(200, Object)
   @Returns(404, Object)
+  @Returns(400, Object)
   async delete(@PathParams("id") id: string) {
-    try {
-      const deleted = await this.documentTypeService.delete(id);
-      if (!deleted) {
-        return {
-          success: false,
-          message: "Tipo de documento não encontrado"
-        };
-      }
-      return {
-        success: true,
-        message: "Tipo de documento removido com sucesso",
-        data: deleted
-      };
-    } catch (error) {
-      throw error;
+    const deleted = await this.documentTypeService.delete(id);
+    if (!deleted) {
+      throw new NotFound("Tipo de documento não encontrado");
     }
+    return ErrorHandler.successResponse(deleted, "Tipo de documento removido com sucesso");
   }
 
   /**
@@ -236,23 +196,13 @@ export class DocumentTypesController {
   @Description("Reativa um tipo de documento desativado")
   @Returns(200, Object)
   @Returns(404, Object)
+  @Returns(400, Object)
   async restore(@PathParams("id") id: string) {
-    try {
-      const restored = await this.documentTypeService.restore(id);
-      if (!restored) {
-        return {
-          success: false,
-          message: "Tipo de documento não encontrado"
-        };
-      }
-      return {
-        success: true,
-        message: "Tipo de documento reativado com sucesso",
-        data: restored
-      };
-    } catch (error) {
-      throw error;
+    const restored = await this.documentTypeService.restore(id);
+    if (!restored) {
+      throw new NotFound("Tipo de documento não encontrado");
     }
+    return ErrorHandler.successResponse(restored, "Tipo de documento reativado com sucesso");
   }
 
   /**
@@ -267,26 +217,15 @@ export class DocumentTypesController {
   @Description("Retorna todos os colaboradores que têm este tipo de documento como obrigatório")
   @Returns(200, Array)
   @Returns(404, Object)
+  @Returns(400, Object)
   async getLinkedEmployees(@PathParams("id") id: string) {
-    try {
-      // Verificar se o tipo de documento existe
-      const documentType = await this.documentTypeService.findById(id);
-      if (!documentType) {
-        return {
-          success: false,
-          message: "Tipo de documento não encontrado",
-          data: []
-        };
-      }
-
-      // Por enquanto retorna array vazio - será implementado quando tivermos o método no service
-      return {
-        success: true,
-        message: "Método será implementado no próximo commit",
-        data: []
-      };
-    } catch (error) {
-      throw error;
+    // Verificar se o tipo de documento existe
+    const documentType = await this.documentTypeService.findById(id);
+    if (!documentType) {
+      throw new NotFound("Tipo de documento não encontrado");
     }
+
+    // Por enquanto retorna array vazio - será implementado quando tivermos o método no service
+    return ErrorHandler.successResponse([], "Método será implementado no próximo commit");
   }
 }

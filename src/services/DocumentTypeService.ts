@@ -3,6 +3,7 @@ import { DocumentType } from "../models/DocumentType.js";
 import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository.js";
 import { DOCUMENT_TYPE_REPOSITORY_TOKEN } from "../config/providers.js";
 import { BadRequest } from "@tsed/exceptions";
+import { ValidationUtils } from "../utils/ValidationUtils.js";
 
 /**
  * Serviço para gerenciamento de tipos de documentos
@@ -79,6 +80,7 @@ export class DocumentTypeService {
      * @returns Promise<DocumentType | null> - Tipo de documento encontrado ou null
      */
     async findById(id: string): Promise<DocumentType | null> {
+        ValidationUtils.validateObjectId(id);
         return await this.documentTypeRepository.findById(id);
     }
 
@@ -111,9 +113,7 @@ export class DocumentTypeService {
      */
     async update(id: string, dto: { name?: string; description?: string }): Promise<DocumentType | null> {
         // Validação de entrada
-        if (!id?.trim()) {
-            throw new BadRequest("ID is required");
-        }
+        ValidationUtils.validateObjectId(id);
 
         // Verifica se o tipo existe
         const existingType = await this.documentTypeRepository.findById(id);
@@ -156,9 +156,7 @@ export class DocumentTypeService {
      * @throws BadRequest - Se ID inválido
      */
     async delete(id: string): Promise<DocumentType | null> {
-        if (!id?.trim()) {
-            throw new BadRequest("ID is required");
-        }
+        ValidationUtils.validateObjectId(id);
 
         // Verifica se o tipo de documento existe e está ativo
         const documentType = await this.documentTypeRepository.findById(id);
@@ -183,9 +181,7 @@ export class DocumentTypeService {
      * @throws BadRequest - Se ID inválido
      */
     async restore(id: string): Promise<DocumentType | null> {
-        if (!id?.trim()) {
-            throw new BadRequest("ID is required");
-        }
+        ValidationUtils.validateObjectId(id);
 
         // Executa a restauração
         return await this.documentTypeRepository.restore(id);
