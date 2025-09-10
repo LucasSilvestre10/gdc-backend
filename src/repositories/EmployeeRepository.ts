@@ -119,19 +119,26 @@ export class EmployeeRepository {
         const page = opts.page || 1;
         const limit = opts.limit || 10;
         
-        // Combina filtros personalizados com filtro de registros ativos
-        const activeFilter = { 
-            ...filter, 
-            isActive: { $ne: false } // Garante apenas registros ativos
-        };
+        // Usa os filtros fornecidos diretamente, sem forçar filtro de ativos
+        // Isso permite buscar colaboradores ativos, inativos ou todos conforme solicitado
+        const queryFilter = { ...filter };
+        
+        // Trata casos especiais de filtro de isActive
+        if (filter.isActive === "all") {
+            // Remove o filtro de isActive para buscar todos (ativos e inativos)
+            delete queryFilter.isActive;
+        } else if (!filter.hasOwnProperty('isActive') || filter.isActive === undefined) {
+            // Se não há filtro específico de isActive, aplica o filtro padrão (apenas ativos)
+            queryFilter.isActive = { $ne: false };
+        }
         
         // Executa consulta paginada
-        const query = this.employeeModel.find(activeFilter)
+        const query = this.employeeModel.find(queryFilter)
             .skip((page - 1) * limit) // Pula registros das páginas anteriores
             .limit(limit);            // Limita quantidade de registros
         
         const items = await query.exec();
-        const total = await this.employeeModel.countDocuments(activeFilter);
+        const total = await this.employeeModel.countDocuments(queryFilter);
         
         return { items, total };
     }

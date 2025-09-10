@@ -1,4 +1,4 @@
-import { Property, Required } from "@tsed/schema";
+import { Property, Required, MinLength, MaxLength, Pattern } from "@tsed/schema";
 
 export class RequiredDocumentDto {
   @Required()
@@ -28,9 +28,12 @@ export class CreateEmployeeDto {
 
 export class UpdateEmployeeDto {
   @Property()
+  @MinLength(3)
+  @MaxLength(100)
   name?: string;
 
   @Property()
+  @Pattern(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/)
   document?: string;
 
   @Property()

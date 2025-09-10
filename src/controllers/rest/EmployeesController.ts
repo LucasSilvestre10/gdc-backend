@@ -76,7 +76,7 @@ export class EmployeesController {
      */
     @Get("/")
     @Summary("Listar colaboradores")
-    @Description("Lista todos os colaboradores com paginação e filtros de status")
+    @Description("Lista todos os colaboradores com paginação. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, PaginatedResponseDto)
     async list(
         @QueryParams("status") status: string = "all",
@@ -90,8 +90,10 @@ export class EmployeesController {
                 filter = { isActive: true };
             } else if (status === "inactive") {
                 filter = { isActive: false };
+            } else if (status === "all") {
+                filter = { isActive: "all" }; // Sinal especial para buscar todos
             }
-            // status === "all" não aplica filtro adicional (padrão do repositório)
+            // Para outros valores de status, usa filtro vazio (padrão do repositório)
             
             const result = await this.employeeService.listAsDto(filter, { page, limit });
             return {
@@ -121,7 +123,7 @@ export class EmployeesController {
      */
     @Get("/search") 
     @Summary("Buscar colaboradores por nome ou CPF")
-    @Description("Busca colaboradores por nome (case-insensitive) ou CPF (busca exata)")
+    @Description("Busca colaboradores por nome (case-insensitive) ou CPF (busca exata). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, PaginatedResponseDto)
     async searchEmployees(
         @QueryParams("query") query: string,
@@ -217,6 +219,15 @@ export class EmployeesController {
     ) {
         try {
             const employee = await this.employeeService.updateEmployee(id, updateDto);
+            
+            if (!employee) {
+                return {
+                    success: false,
+                    message: "Colaborador não encontrado",
+                    data: null
+                };
+            }
+
             return {
                 success: true,
                 message: "Colaborador atualizado com sucesso",
@@ -321,7 +332,7 @@ export class EmployeesController {
      */
     @Get("/:id/documents")
     @Summary("Listar documentos do colaborador")
-    @Description("Lista todos os documentos do colaborador")
+    @Description("Lista todos os documentos do colaborador. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, Array)
     @Returns(404, Object)
     async getEmployeeDocuments(
@@ -348,7 +359,7 @@ export class EmployeesController {
      */
     @Get("/:id/documents/status")
     @Summary("Status da documentação do colaborador")
-    @Description("Retorna o status da documentação obrigatória do colaborador (enviados e pendentes)")
+    @Description("Retorna o status da documentação obrigatória do colaborador (enviados e pendentes). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, DocumentationStatusDto)
     @Returns(404, Object)
     async getDocumentationStatus(
@@ -445,7 +456,7 @@ export class EmployeesController {
      */
     @Get("/:id/required-documents")
     @Summary("Listar vínculos de tipos de documento")
-    @Description("Lista os vínculos de tipos de documento do colaborador")
+    @Description("Lista os vínculos de tipos de documento do colaborador. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
     @Returns(200, Array)
     @Returns(404, Object)
     async getRequiredDocuments(
