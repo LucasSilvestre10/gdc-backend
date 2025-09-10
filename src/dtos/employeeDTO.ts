@@ -95,28 +95,31 @@ export class EmployeeListDto {
   deletedAt?: Date;
 }
 
-// DTO para resposta de status da documentação
-export class DocumentationStatusDto {
+// DTO simples para resposta de status da documentação (sem dependências circulares)
+export class DocumentationStatusResponseDto {
   @Property()
-  employee!: {
-    id: string;
-    name: string;
-  };
+  success!: boolean;
 
   @Property()
-  documentationStatus!: {
-    total: number;
-    sent: number;
-    pending: number;
-    documents: Array<{
-      type: {
-        id: string;
-        name: string;
-      };
-      status: 'SENT' | 'PENDING';
-      value: string | null;
-      active: boolean;
-    }>;
+  data!: {
+    employee: {
+      id: string;
+      name: string;
+    };
+    documentationStatus: {
+      total: number;
+      sent: number;
+      pending: number;
+      documents: Array<{
+        type: {
+          id: string;
+          name: string;
+        };
+        status: 'SENT' | 'PENDING';
+        value: string | null;
+        active: boolean;
+      }>;
+    };
   };
 }
 

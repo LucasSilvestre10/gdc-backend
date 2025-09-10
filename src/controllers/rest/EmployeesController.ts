@@ -9,7 +9,7 @@ import {
     LinkDocumentTypesDto,
     RequiredDocumentLinkDto,
     EmployeeListDto,
-    DocumentationStatusDto,
+    DocumentationStatusResponseDto,
     PaginatedResponseDto,
     StatusFilterDto,
     EmployeeDocumentDto
@@ -324,6 +324,36 @@ export class EmployeesController {
     }
 
     /**
+     * @endpoint POST /employees/:id/documents/:documentTypeId
+     * @description Envia um documento do colaborador.
+     * @param id - ID do colaborador
+     * @param documentTypeId - ID do tipo de documento
+     * @body { value: string } - Valor textual do documento
+     * @returns { success, message, data }
+     */
+    @Post("/:id/documents/:documentTypeId")
+    @Summary("Enviar documento do colaborador")
+    @Description("Envia um documento específico do colaborador")
+    @Returns(201, Object)
+    @Returns(404, Object)
+    async sendDocument(
+        @PathParams("id") id: string,
+        @PathParams("documentTypeId") documentTypeId: string,
+        @BodyParams("value") value: string
+    ) {
+        try {
+            const document = await this.employeeService.sendDocument(id, documentTypeId, value);
+            return {
+                success: true,
+                message: "Documento enviado com sucesso",
+                data: document
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    /**
      * @endpoint GET /employees/:id/documents
      * @description Lista todos os documentos do colaborador.
      * @param id
@@ -340,10 +370,12 @@ export class EmployeesController {
         @QueryParams("status") status: string = "all"
     ) {
         try {
-            const documents = await this.employeeService.getEmployeeDocuments(id, status);
+            const result = await this.employeeService.getEmployeeDocuments(id, status);
             return {
                 success: true,
-                data: documents
+                data: result.documents,
+                hasRequiredDocuments: result.hasRequiredDocuments,
+                message: result.message
             };
         } catch (error) {
             throw error;
@@ -360,7 +392,7 @@ export class EmployeesController {
     @Get("/:id/documents/status")
     @Summary("Status da documentação do colaborador")
     @Description("Retorna o status da documentação obrigatória do colaborador (enviados e pendentes). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).")
-    @Returns(200, DocumentationStatusDto)
+    @Returns(200, DocumentationStatusResponseDto)
     @Returns(404, Object)
     async getDocumentationStatus(
         @PathParams("id") id: string,
@@ -395,7 +427,7 @@ export class EmployeesController {
                                 name: type.name 
                             },
                             status: "SENT",
-                            value: null, // TODO: Buscar valor real do documento
+                            value: (type as any).documentValue || null,
                             active: true
                         })),
                         ...documentStatus.pending.map(type => ({
@@ -410,7 +442,7 @@ export class EmployeesController {
                     ]
                 }
             };
-
+            
             return {
                 success: true,
                 data: response

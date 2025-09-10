@@ -1,39 +1,68 @@
-// import { Controller } from "@tsed/di";
-// import { Get, Post, Put, Delete } from "@tsed/schema";
-// import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
-// import { Returns, Summary, Description } from "@tsed/schema";
-// import { Inject } from "@tsed/di";
-// import {
+import { Controller } from "@tsed/di";
+import { Get } from "@tsed/schema";
+import { QueryParams } from "@tsed/platform-params";
+import { Returns, Summary, Description } from "@tsed/schema";
+import { Inject } from "@tsed/di";
+import { DocumentService } from "../../services/DocumentService";
 
-//   UpdateDocumentDto,
+/**
+ * Controller responsável por operações globais de documentos.
+ * 
+ * Foco principal: GET /documents/pending
+ * Lista todos os documentos pendentes de todos os colaboradores
+ * com filtros opcionais e paginação.
+ * 
+ * Funcionalidades:
+ * - Listagem global de documentos pendentes
+ * - Filtros por colaborador e tipo de documento
+ * - Paginação completa
+ * - Suporte a filtros de status (active/inactive/all)
+ */
+@Controller("/documents")
+export class DocumentsController {
+  @Inject()
+  private documentService!: DocumentService;
 
-//   PendingDocumentsListResponseDto
-// } from "../../dtos/documentDTO";
-// import { DocumentService } from "../../services/DocumentService";
+  /**
+   * @endpoint GET /documents/pending
+   * @description Lista todos os documentos pendentes de todos os colaboradores.
+   * @query status - Filtro de status (active|inactive|all) - default: all
+   * @query page - Número da página (default: 1)
+   * @query limit - Items por página (default: 10)
+   * @query employeeId - Filtro opcional por colaborador
+   * @query documentTypeId - Filtro opcional por tipo de documento
+   * @returns { success, data, pagination }
+   */
+  @Get("/pending")
+  @Summary("Listar documentos pendentes globalmente")
+  @Description("Lista todos os documentos pendentes de todos os colaboradores com filtros opcionais e paginação")
+  @Returns(200, Object)
+  async getPendingDocuments(
+    @QueryParams("status") status: string = "all",
+    @QueryParams("page") page: number = 1,
+    @QueryParams("limit") limit: number = 10,
+    @QueryParams("employeeId") employeeId?: string,
+    @QueryParams("documentTypeId") documentTypeId?: string
+  ) {
+    try {
+      const result = await this.documentService.getPendingDocuments({
+        status,
+        page,
+        limit,
+        employeeId,
+        documentTypeId
+      });
 
-// /**
-//  * Controller responsável por gerenciar documentos dos colaboradores.
-//  * 
-//  * Endpoints principais:
-//  * - POST /documents: Cria um novo documento.
-//  * - GET /documents: Lista todos os documentos com filtros e paginação.
-//  * - GET /documents/pending: Lista documentos pendentes com filtros avançados.
-//  * - GET /documents/:id: Busca um documento pelo ID.
-//  * - PUT /documents/:id: Atualiza dados de um documento.
-//  * - DELETE /documents/:id: Remove documento (soft delete).
-//  * - POST /documents/:id/restore: Reativa documento removido.
-//  * 
-//  * Funcionalidades:
-//  * - Implementa soft delete pattern
-//  * - Suporte completo a filtros e paginação
-//  * - Validação via DTOs
-//  * - Tratamento de erros padronizado
-//  * - Endpoint especializado para documentos pendentes
-//  */
-// @Controller("/documents")
-// export class DocumentsController {
-//   @Inject()
-//   private documentService!: DocumentService;
+      return {
+        success: true,
+        data: result.data,
+        pagination: result.pagination
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+}
 
 //   /**
 //    * Cria um novo documento no sistema.

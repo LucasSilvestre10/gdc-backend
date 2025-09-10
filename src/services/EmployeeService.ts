@@ -259,6 +259,9 @@ export class EmployeeService {
     }
 
     for (const documentTypeId of typeIds) {
+      // Criar vínculo na tabela de links
+      await this.linkRepo.create(employeeId, documentTypeId);
+      
       // Verificar se é CPF e criar documento automaticamente
       const documentType = documentTypes.find(dt => (dt as any)._id.toString() === documentTypeId);
       if (documentType && this.isCpfDocumentType(documentType.name)) {
@@ -272,7 +275,7 @@ export class EmployeeService {
       }
     }
 
-    // Executar vinculação
+    // Executar vinculação no embedded array (manter compatibilidade)
     await this.employeeRepo.addRequiredTypes(employeeId, typeIds);
   }
 
@@ -298,7 +301,12 @@ export class EmployeeService {
     // Validação de entrada
     if (!typeIds?.length) return;
     
-    // Executa desvinculação (operação segura)
+    // Desativar vínculos na tabela de links
+    for (const documentTypeId of typeIds) {
+      await this.linkRepo.softDelete(employeeId, documentTypeId);
+    }
+    
+    // Executa desvinculação no embedded array (manter compatibilidade)
     await this.employeeRepo.removeRequiredTypes(employeeId, typeIds);
   }
 
@@ -310,19 +318,20 @@ export class EmployeeService {
    * - Cruza dados entre colaborador, tipos obrigatórios e documentos enviados
    * - Implementa lógica de negócio para acompanhamento de compliance
    * - Base para relatórios de documentação pendente
+   * - Inclui valores dos documentos enviados
    * 
    * Algoritmo:
    * 1. Valida existência do colaborador
-   * 2. Obtém tipos de documento obrigatórios vinculados
+   * 2. Obtém tipos de documento obrigatórios vinculados (nova tabela de links)
    * 3. Consulta documentos já enviados com status SENT
-   * 4. Classifica tipos como "enviados" ou "pendentes"
+   * 4. Classifica tipos como "enviados" ou "pendentes" com valores
    * 
    * @param employeeId - ID do colaborador para consulta
-   * @returns Promise com objetos { sent: [], pending: [] } contendo tipos
+   * @returns Promise com objetos { sent: [], pending: [] } contendo tipos e valores
    * @throws Error se colaborador não encontrado
    */
   async getDocumentationStatus(employeeId: string): Promise<{
-    sent: DocumentType[];
+    sent: Array<DocumentType & { documentValue?: string | null }>;
     pending: DocumentType[];
   }> {
     // Valida existência do colaborador
@@ -331,11 +340,16 @@ export class EmployeeService {
       throw new Error("Colaborador não encontrado");
     }
 
-    // Obtém IDs dos tipos obrigatórios vinculados
-    const requiredTypeIds = (employee.requiredDocumentTypes || []).map(id => id.toString());
-    if (!requiredTypeIds.length) {
+    // Obtém vínculos ativos de tipos de documento obrigatórios
+    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    if (!activeLinks.length) {
       return { sent: [], pending: [] }; // Nenhum documento obrigatório
     }
+
+    // Extrai IDs dos tipos vinculados
+    const requiredTypeIds = activeLinks.map(link => 
+      (link.documentTypeId as any)._id?.toString() || link.documentTypeId.toString()
+    );
 
     // Busca dados dos tipos obrigatórios
     const requiredTypes = await this.documentTypeRepo.findByIds(requiredTypeIds);
@@ -344,23 +358,30 @@ export class EmployeeService {
     const sentDocuments = await this.documentRepo.find({
       employeeId,
       documentTypeId: { $in: requiredTypeIds },
-      status: DocumentStatus.SENT
+      status: DocumentStatus.SENT,
+      isActive: true
     });
 
-    // Cria set com IDs dos tipos já enviados para lookup eficiente
-    const sentTypeIds = new Set(
-      sentDocuments.map(doc => doc.documentTypeId.toString())
+    // Cria mapa com IDs dos tipos já enviados e seus valores
+    const sentDocumentsMap = new Map(
+      sentDocuments.map(doc => [doc.documentTypeId.toString(), doc.value])
     );
 
     // Classifica tipos como enviados ou pendentes
-    const sent = requiredTypes.filter(type => 
-      sentTypeIds.has((type as any)._id?.toString() ?? "")
-    );
+    const sent = requiredTypes
+      .filter(type => sentDocumentsMap.has((type as any)._id?.toString() ?? ""))
+      .map(type => ({
+        _id: (type as any)._id,
+        name: type.name,
+        description: type.description,
+        isActive: type.isActive,
+        documentValue: sentDocumentsMap.get((type as any)._id?.toString() ?? "") || null
+      }));
     
     const pending = requiredTypes.filter(type => 
-      !sentTypeIds.has((type as any)._id?.toString() ?? "")
+      !sentDocumentsMap.has((type as any)._id?.toString() ?? "")
     );
-
+    
     return { sent, pending };
   }
 
@@ -496,16 +517,67 @@ export class EmployeeService {
    * @param status - Filtro de status (active|inactive|all)
    * @returns Promise com lista de documentos
    */
-  async getEmployeeDocuments(employeeId: string, status: string = "all"): Promise<any[]> {
+  async getEmployeeDocuments(employeeId: string, status: string = "all"): Promise<{
+    documents: any[];
+    hasRequiredDocuments: boolean;
+    message?: string;
+  }> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
       throw new BadRequest("Colaborador não encontrado");
     }
 
-    // TODO: Implementar busca de documentos reais
-    // Por enquanto retorna array vazio
-    return [];
+    // Verifica se há tipos de documento vinculados
+    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    const hasRequiredDocuments = activeLinks.length > 0;
+
+    // Constrói filtro baseado no status
+    let filter: any = { employeeId };
+    
+    if (status === 'active') {
+      filter.isActive = true;
+    } else if (status === 'inactive') {
+      filter.isActive = false;
+    }
+    // Para 'all', não aplica filtro de isActive
+
+    // Busca documentos do colaborador
+    const documents = await this.documentRepo.find(filter);
+
+    // Converte para DTO com dados do tipo de documento
+    const result = [];
+    for (const doc of documents) {
+      const documentType = await this.documentTypeRepo.findById(doc.documentTypeId.toString());
+      
+      result.push({
+        id: (doc as any)._id,
+        value: doc.value,
+        status: doc.status,
+        documentType: {
+          id: documentType ? (documentType as any)._id : doc.documentTypeId,
+          name: documentType?.name || 'Tipo não encontrado',
+          description: documentType?.description || null
+        },
+        employee: {
+          id: (employee as any)._id,
+          name: employee.name
+        },
+        isActive: doc.isActive,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt,
+        deletedAt: doc.deletedAt
+      });
+    }
+
+    // Retorna dados estruturados com informação sobre vínculos
+    return {
+      documents: result,
+      hasRequiredDocuments,
+      message: !hasRequiredDocuments ? 
+        "Nenhum tipo de documento vinculado a este colaborador" : 
+        undefined
+    };
   }
 
   /**
@@ -539,12 +611,17 @@ export class EmployeeService {
    * Converte vínculos para RequiredDocumentLinkDto
    */
   private toRequiredDocumentLinkDto(link: any): any {
+    // Trata casos onde documentTypeId pode ser string ou objeto populado
+    const documentType = typeof link.documentTypeId === 'string' 
+      ? { id: link.documentTypeId, name: 'Tipo de documento', description: null }
+      : {
+          id: link.documentTypeId._id || link.documentTypeId.id || link.documentTypeId,
+          name: link.documentTypeId.name || 'Nome não encontrado',
+          description: link.documentTypeId.description || null
+        };
+
     return {
-      documentType: {
-        id: link.documentTypeId._id || link.documentTypeId,
-        name: link.documentTypeId.name || 'Nome não encontrado',
-        description: link.documentTypeId.description
-      },
+      documentType,
       active: link.active,
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
@@ -556,7 +633,88 @@ export class EmployeeService {
    * Lista vínculos convertidos para DTO
    */
   async getRequiredDocumentsAsDto(employeeId: string, status: string = "all"): Promise<any[]> {
-    const links = await this.getRequiredDocuments(employeeId, status);
-    return links.map(link => this.toRequiredDocumentLinkDto(link));
+    const statusFilter = status as 'active' | 'inactive' | 'all';
+    const links = await this.linkRepo.findByEmployee(employeeId, statusFilter);
+    
+    return links.map(link => {
+      // O documentTypeId vem populado como objeto completo
+      const docType = link.documentTypeId as any;
+      
+      return {
+        documentType: {
+          id: docType._id?.toString() || docType.toString(),
+          name: docType.name || 'Nome não encontrado',
+          description: docType.description || null
+        },
+        active: link.active,
+        createdAt: link.createdAt,
+        updatedAt: link.updatedAt,
+        deletedAt: link.deletedAt
+      };
+    });
+  }
+
+  /**
+   * Envia um documento do colaborador
+   * 
+   * Funcionalidades:
+   * - Valida se colaborador e tipo de documento existem
+   * - Verifica se há vínculo ativo entre colaborador e tipo
+   * - Cria ou atualiza documento existente
+   * - Marca documento como SENT
+   * 
+   * @param employeeId - ID do colaborador
+   * @param documentTypeId - ID do tipo de documento
+   * @param value - Valor textual do documento
+   * @returns Promise<Document> - Documento criado/atualizado
+   */
+  async sendDocument(employeeId: string, documentTypeId: string, value: string): Promise<any> {
+    // Verifica se colaborador existe
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
+    }
+
+    // Verifica se tipo de documento existe
+    const documentType = await this.documentTypeRepo.findById(documentTypeId);
+    if (!documentType) {
+      throw new BadRequest("Tipo de documento não encontrado");
+    }
+
+    // Verifica se há vínculo ativo entre colaborador e tipo de documento
+    const links = await this.linkRepo.findByEmployee(employeeId, 'active');
+    const hasActiveLink = links.some(link => 
+      (link.documentTypeId as any)._id?.toString() === documentTypeId
+    );
+
+    if (!hasActiveLink) {
+      throw new BadRequest("Tipo de documento não está vinculado ao colaborador");
+    }
+
+    // Verifica se já existe documento para este tipo e colaborador
+    const existingDocs = await this.documentRepo.find({
+      employeeId,
+      documentTypeId,
+      isActive: true
+    });
+
+    if (existingDocs.length > 0) {
+      // Atualiza documento existente
+      const existingDoc = existingDocs[0];
+      return await this.documentRepo.update((existingDoc as any)._id, {
+        value,
+        status: DocumentStatus.SENT,
+        updatedAt: new Date()
+      });
+    } else {
+      // Cria novo documento
+      return await this.documentRepo.create({
+        value,
+        status: DocumentStatus.SENT,
+        employeeId,
+        documentTypeId,
+        isActive: true
+      });
+    }
   }
 }
