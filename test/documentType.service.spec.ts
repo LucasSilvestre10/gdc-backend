@@ -51,14 +51,10 @@ describe("DocumentTypeService", () => {
             const result = await service.create(dto);
 
             expect(repo.findByName).toHaveBeenCalledWith("CPF");
-            expect(repo.create).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    name: "CPF",
-                    description: "Documento de identificação",
-                    createdAt: expect.any(Date),
-                    updatedAt: expect.any(Date),
-                })
-            );
+            expect(repo.create).toHaveBeenCalledWith({
+                name: "CPF",
+                description: "Documento de identificação",
+            });
             expect(result).toEqual(created);
         });
 
@@ -117,11 +113,7 @@ describe("DocumentTypeService", () => {
 
             const result = await service.list({ name: "cpf" }, {});
 
-            expect(repo.list).toHaveBeenCalled();
-            const calledFilter = repo.list.mock.calls[0][0];
-            expect(calledFilter).toHaveProperty("name");
-            expect(calledFilter.name).toBeInstanceOf(RegExp);
-            expect(calledFilter.name.source.toLowerCase()).toContain("cpf");
+            expect(repo.list).toHaveBeenCalledWith({ name: "cpf" }, {});
             expect(result).toEqual(mockResult);
         });
     });

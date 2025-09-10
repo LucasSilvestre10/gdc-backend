@@ -6,6 +6,7 @@ import { DocumentTypeRepository } from "../src/repositories/DocumentTypeReposito
 describe("DocumentTypeRepository", () => {
   let repo: DocumentTypeRepository;
   let mockModel: any;
+  let mockMongooseService: any;
 
   // Antes de cada teste, cria um mock do modelo do Mongoose e instancia o repositório
   beforeEach(() => {
@@ -22,6 +23,7 @@ describe("DocumentTypeRepository", () => {
       skip: vi.fn().mockReturnThis(),
       limit: vi.fn().mockReturnThis(),
       exec: vi.fn(),
+      lean: vi.fn().mockReturnThis(),
     };
     
     mockModel.find.mockReturnValue(mockQuery);
@@ -29,8 +31,17 @@ describe("DocumentTypeRepository", () => {
     mockModel.countDocuments.mockReturnValue({ exec: vi.fn() });
     mockModel.findOneAndUpdate.mockReturnValue({ exec: vi.fn() });
     
+    // Mock do MongooseService
+    const mockConnection = {
+      model: vi.fn().mockReturnValue(mockModel)
+    };
+    
+    mockMongooseService = {
+      get: vi.fn().mockReturnValue(mockConnection)
+    };
+    
     // @ts-ignore
-    repo = new DocumentTypeRepository(mockModel);
+    repo = new DocumentTypeRepository(mockMongooseService);
   });
 
   // Testa o método create
@@ -43,7 +54,14 @@ describe("DocumentTypeRepository", () => {
         ...docTypeData,
         isActive: true,
         createdAt: expect.any(Date),
-        updatedAt: expect.any(Date)
+        updatedAt: expect.any(Date),
+        toJSON: vi.fn().mockReturnValue({
+          _id: "123", 
+          ...docTypeData,
+          isActive: true,
+          createdAt: expect.any(Date),
+          updatedAt: expect.any(Date)
+        })
       };
       
       // Mock: simula retorno do método create do Mongoose
@@ -59,7 +77,14 @@ describe("DocumentTypeRepository", () => {
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date)
       });
-      expect(result).toEqual(createdDocType);
+      expect(result).toMatchObject({
+        _id: '123',
+        name: 'CPF',
+        description: 'Cadastro de Pessoa Física',
+        isActive: true,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
+      });
     });
   });
 
@@ -188,19 +213,19 @@ describe("DocumentTypeRepository", () => {
       
       // Assert: verifica se os métodos foram chamados corretamente com filtro de registros ativos
       expect(mockModel.find).toHaveBeenCalledWith({
-        isActive: { $ne: false }
+        isActive: true
       });
       expect(mockQuery.skip).toHaveBeenCalledWith(0);
       expect(mockQuery.limit).toHaveBeenCalledWith(10);
       expect(mockModel.countDocuments).toHaveBeenCalledWith({
-        isActive: { $ne: false }
+        isActive: true
       });
       expect(result).toEqual({ items: docTypes, total });
     });
 
     it("deve listar tipos de documento com filtros e paginação customizada", async () => {
-      // Arrange: dados de entrada e saída esperada
-      const filter = { name: /CPF/i };
+      // Arrange: dados de entrada e saída esperada (usa string que será convertida para RegExp)
+      const filter = { name: "CPF" };
       const options = { page: 2, limit: 5 };
       const docTypes = [{ _id: "1", name: "CPF" }];
       const total = 15;
@@ -214,15 +239,15 @@ describe("DocumentTypeRepository", () => {
       const result = await repo.list(filter, options);
       
       // Assert: verifica se os métodos foram chamados corretamente com filtros combinados
-      expect(mockModel.find).toHaveBeenCalledWith({
-        ...filter,
-        isActive: { $ne: false }
+      expect(mockModel.find).toHaveBeenLastCalledWith({
+        name: /CPF/i,
+        isActive: true
       });
       expect(mockQuery.skip).toHaveBeenCalledWith(5); // (page - 1) * limit = (2 - 1) * 5
       expect(mockQuery.limit).toHaveBeenCalledWith(5);
       expect(mockModel.countDocuments).toHaveBeenCalledWith({
-        ...filter,
-        isActive: { $ne: false }
+        name: /CPF/i,
+        isActive: true
       });
       expect(result).toEqual({ items: docTypes, total });
     });
@@ -344,6 +369,140 @@ describe("DocumentTypeRepository", () => {
       
       // Assert: espera que o retorno seja null
       expect(result).toBeNull();
+    });
+  });
+
+  // Testes adicionais para 100% de cobertura
+  describe("Cenários de erro e filtros avançados", () => {
+    it("deve criar tipo de documento sem description (usando valor padrão vazio)", async () => {
+      // Arrange: dados sem description
+      const docTypeData = { name: "CPF" }; // sem description
+      const mockResult = { 
+        _id: "123", 
+        name: "CPF", 
+        description: "",
+        toJSON: () => ({ _id: "123", name: "CPF", description: "" })
+      };
+      mockModel.create.mockResolvedValue(mockResult);
+
+      // Act: chama create sem description
+      const result = await repo.create(docTypeData);
+
+      // Assert: verifica se foi criado com description vazia
+      expect(mockModel.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "CPF",
+          description: "", // deve ser string vazia quando não fornecida
+          isActive: true
+        })
+      );
+      expect(result).toEqual({ _id: "123", name: "CPF", description: "" });
+    });
+
+    it("deve tratar erro durante criação e logar schema", async () => {
+      // Arrange: cria um mock que simula resultado mas com erro no toJSON
+      const docTypeData = { name: "CPF", description: "Cadastro de Pessoa Física" };
+      
+      const mockResult = {
+        _id: "123",
+        toJSON: vi.fn().mockImplementation(() => {
+          throw new Error("toJSON error");
+        })
+      };
+
+      mockModel.create.mockResolvedValue(mockResult);
+      mockModel.schema = { paths: { name: {}, description: {} } };
+
+      // Act & Assert: espera que o erro seja propagado
+      await expect(repo.create(docTypeData)).rejects.toThrow("toJSON error");
+      
+      // Verifica se o toJSON foi chamado
+      expect(mockResult.toJSON).toHaveBeenCalled();
+      
+      // Restaura o mock
+      mockModel.create.mockResolvedValue({ 
+        _id: "123", 
+        ...docTypeData, 
+        toJSON: () => ({ _id: "123", ...docTypeData }) 
+      });
+    });
+
+
+    it("deve listar apenas tipos de documento inativos quando status='inactive'", async () => {
+      // Arrange: configura mocks
+      const docTypes = [{ _id: "1", name: "CPF", isActive: false }];
+      const total = 1;
+      
+      const mockQuery = mockModel.find();
+      mockQuery.exec.mockResolvedValue(docTypes);
+      mockModel.countDocuments().exec.mockResolvedValue(total);
+
+      // Act: chama com filtro de status inactive
+      const result = await repo.list({ status: 'inactive' });
+
+      // Assert: verifica se filtrou por isActive: false
+      expect(mockModel.find).toHaveBeenLastCalledWith({
+        isActive: false
+      });
+      expect(result).toEqual({ items: docTypes, total });
+    });
+
+    it("deve processar filtros personalizados além de name e status", async () => {
+      // Arrange: filtro customizado
+      const customFilter = { 
+        name: "CPF",
+        status: "active", 
+        customField: "customValue",
+        anotherField: 123
+      };
+      const docTypes = [{ _id: "1", name: "CPF" }];
+      const total = 1;
+      
+      const mockQuery = mockModel.find();
+      mockQuery.exec.mockResolvedValue(docTypes);
+      mockModel.countDocuments().exec.mockResolvedValue(total);
+
+      // Act: chama com filtros customizados
+      const result = await repo.list(customFilter);
+
+      // Assert: verifica se os filtros customizados foram aplicados
+      expect(mockModel.find).toHaveBeenLastCalledWith({
+        name: /CPF/i,
+        isActive: true,
+        customField: "customValue",
+        anotherField: 123
+      });
+      expect(result).toEqual({ items: docTypes, total });
+    });
+
+    it("deve tratar erro durante listagem", async () => {
+      // Arrange: força erro na consulta
+      const mockQuery = mockModel.find();
+      mockQuery.exec.mockRejectedValue(new Error("Database connection error"));
+      
+      // Act & Assert: espera que o erro seja propagado
+      await expect(repo.list()).rejects.toThrow("Database connection error");
+    });
+
+    it("deve listar todos os registros quando status='all'", async () => {
+      // Arrange: configura mocks
+      const docTypes = [
+        { _id: "1", name: "CPF", isActive: true },
+        { _id: "2", name: "RG", isActive: false }
+      ];
+      const total = 2;
+      
+      const mockQuery = mockModel.find();
+      mockQuery.exec.mockResolvedValue(docTypes);
+      mockModel.countDocuments().exec.mockResolvedValue(total);
+
+      // Act: chama com status='all'
+      const result = await repo.list({ status: 'all' });
+
+      // Assert: verifica que não há filtro de isActive (traz todos)
+      expect(mockModel.find).toHaveBeenLastCalledWith({});
+      expect(mockModel.countDocuments).toHaveBeenLastCalledWith({});
+      expect(result).toEqual({ items: docTypes, total });
     });
   });
 });
