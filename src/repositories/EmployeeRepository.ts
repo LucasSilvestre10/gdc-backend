@@ -292,32 +292,60 @@ export class EmployeeRepository {
      * 
      * @param query - Termo de busca (nome ou CPF)
      * @param filters - Filtros adicionais (status, etc.)
-     * @returns Promise<Employee[]> - Lista de colaboradores encontrados
+     * @param opts - Opções de paginação { page, limit } (opcional)
+     * @returns Promise<{ items: Employee[]; total: number }> - Lista paginada de colaboradores encontrados
      */
-    async searchByNameOrCpf(query: string, filters: any = {}): Promise<Employee[]> {
-        const baseFilter: any = {
-            isActive: { $ne: false }
-        };
+    async searchByNameOrCpf(query: string, filters: any = {}, opts: { page?: number; limit?: number } = {}): Promise<{ items: Employee[]; total: number }> {
+        // Define valores padrão para paginação
+        const page = opts.page || 1;
+        const limit = opts.limit || 20;
+        
+        const baseFilter: any = {};
 
-        // Aplicar filtro de status se especificado
+        // Aplicar filtro de status
         if (filters.status === 'active') {
             baseFilter.isActive = true;
         } else if (filters.status === 'inactive') {
             baseFilter.isActive = false;
+        } else if (filters.status === 'all') {
+            // Para 'all', não aplica filtro de isActive (busca todos)
+        } else {
+            // Se não especificado, busca apenas ativos (comportamento padrão)
+            baseFilter.isActive = { $ne: false };
         }
 
-        // Query que busca por nome (case-insensitive) OU por CPF (exato)
+        // Limpa formatação do CPF para busca flexível
+        const cleanQuery = query.replace(/[.\-\s]/g, '');
+        
+        // Se a query tem 11 dígitos, assumimos que é um CPF sem formatação
+        let cpfRegexPattern = '';
+        if (cleanQuery.length === 11 && /^\d{11}$/.test(cleanQuery)) {
+            // Converte "99988877755" em regex que encontra "999.888.777-55"
+            const digits = cleanQuery.split('');
+            cpfRegexPattern = `${digits[0]}${digits[1]}${digits[2]}[.\\-\\s]*${digits[3]}${digits[4]}${digits[5]}[.\\-\\s]*${digits[6]}${digits[7]}${digits[8]}[.\\-\\s]*${digits[9]}${digits[10]}`;
+        }
+        
+        // Query que busca por nome OU por CPF (com ou sem formatação)
         const searchQuery = {
             ...baseFilter,
             $or: [
-                { name: { $regex: query, $options: 'i' } },  // Nome case-insensitive
-                { document: query }                          // CPF exato
+                { name: { $regex: query, $options: 'i' } },     // Nome case-insensitive
+                { document: query },                            // CPF exato como digitado
+                ...(cpfRegexPattern ? [{ document: { $regex: cpfRegexPattern, $options: 'i' } }] : [])  // CPF flexível se aplicável
             ]
         };
+        
 
-        return await this.employeeModel
-            .find(searchQuery)
+
+        // Executa consulta paginada
+        const mongooseQuery = this.employeeModel.find(searchQuery)
             .sort({ name: 1 })
-            .exec();
+            .skip((page - 1) * limit)
+            .limit(limit);
+        
+        const items = await mongooseQuery.exec();
+        const total = await this.employeeModel.countDocuments(searchQuery);
+        
+        return { items, total };
     }
 }

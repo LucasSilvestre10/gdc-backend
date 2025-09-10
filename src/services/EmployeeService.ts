@@ -221,18 +221,14 @@ export class EmployeeService {
     query: string,
     filters: any = {}
   ): Promise<{ items: Employee[]; total: number }> {
-    // Busca unificada por nome ou CPF em uma única query
-    const employees = await this.employeeRepo.searchByNameOrCpf(query, filters);
-
-    // Aplicar paginação
-    const startIndex = ((filters.page || 1) - 1) * (filters.limit || 10);
-    const endIndex = startIndex + (filters.limit || 10);
-    const paginatedEmployees = employees.slice(startIndex, endIndex);
-
-    return {
-      items: paginatedEmployees,
-      total: employees.length
+    // Extrai opções de paginação dos filtros
+    const opts = {
+      page: filters.page || 1,
+      limit: filters.limit || 20
     };
+    
+    // Busca unificada por nome ou CPF com paginação no MongoDB
+    return await this.employeeRepo.searchByNameOrCpf(query, filters, opts);
   }
 
   /**
