@@ -4,7 +4,7 @@ import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description, Example } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { BadRequest, NotFound, Conflict, UnprocessableEntity } from "@tsed/exceptions";
-import { ErrorHandler } from "../../middleware/GlobalErrorHandler";
+import { ResponseHandler } from "../../middleware/ResponseHandler";
 import { 
   CreateDocumentTypeDto, 
   UpdateDocumentTypeDto 
@@ -47,7 +47,7 @@ export class DocumentTypesController {
   })
   async create(@BodyParams() createDto: CreateDocumentTypeDto) {
     const documentType = await this.documentTypeService.create(createDto);
-    return ErrorHandler.successResponse(documentType, "Tipo de documento criado com sucesso");
+    return ResponseHandler.success(documentType, "Tipo de documento criado com sucesso");
   }
 
 
@@ -128,7 +128,7 @@ export class DocumentTypesController {
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ErrorHandler.successResponse(documentType, "Tipo de documento encontrado com sucesso");
+    return ResponseHandler.success(documentType, "Tipo de documento encontrado com sucesso");
   }
 
 
@@ -160,7 +160,7 @@ export class DocumentTypesController {
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ErrorHandler.successResponse(documentType, "Tipo de documento atualizado com sucesso");
+    return ResponseHandler.success(documentType, "Tipo de documento atualizado com sucesso");
   }
 
   /**
@@ -181,7 +181,7 @@ export class DocumentTypesController {
     if (!deleted) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ErrorHandler.successResponse(deleted, "Tipo de documento removido com sucesso");
+    return ResponseHandler.success(deleted, "Tipo de documento removido com sucesso");
   }
 
   /**
@@ -202,7 +202,7 @@ export class DocumentTypesController {
     if (!restored) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ErrorHandler.successResponse(restored, "Tipo de documento reativado com sucesso");
+    return ResponseHandler.success(restored, "Tipo de documento reativado com sucesso");
   }
 
   /**
@@ -226,6 +226,6 @@ export class DocumentTypesController {
     }
 
     // Por enquanto retorna array vazio - será implementado quando tivermos o método no service
-    return ErrorHandler.successResponse([], "Método será implementado no próximo commit");
+    return ResponseHandler.success([], "Método será implementado no próximo commit");
   }
 }

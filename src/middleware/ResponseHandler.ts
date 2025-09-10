@@ -2,10 +2,10 @@ import { Exception } from "@tsed/exceptions";
 import { AppError } from "../exceptions";
 
 /**
- * Utilitário para tratamento padronizado de erros
- * Converte diferentes tipos de erro em respostas HTTP apropriadas
+ * Utilitário para tratamento padronizado de respostas HTTP
+ * Converte dados e erros em respostas HTTP apropriadas
  */
-export class ErrorHandler {
+export class ResponseHandler {
     /**
      * Processa um erro e retorna o objeto de resposta apropriado
      */
@@ -125,7 +125,7 @@ export class ErrorHandler {
     /**
      * Cria uma resposta de sucesso padronizada
      */
-    static successResponse(data: any, message: string = 'Operação realizada com sucesso'): any {
+    static success(data: any, message: string = 'Operação realizada com sucesso'): any {
         return {
             success: true,
             message,

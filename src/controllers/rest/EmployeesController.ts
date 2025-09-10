@@ -4,7 +4,7 @@ import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { BadRequest, NotFound, Conflict, UnprocessableEntity } from "@tsed/exceptions";
-import { ErrorHandler } from "../../middleware/GlobalErrorHandler";
+import { ResponseHandler } from "../../middleware/ResponseHandler";
 import { 
     CreateEmployeeDto, 
     UpdateEmployeeDto, 
@@ -192,7 +192,7 @@ export class EmployeesController {
             throw new NotFound("Colaborador não encontrado");
         }
 
-        return ErrorHandler.successResponse(employee, "Colaborador encontrado com sucesso");
+        return ResponseHandler.success(employee, "Colaborador encontrado com sucesso");
     }
 
     /**
@@ -219,7 +219,7 @@ export class EmployeesController {
             throw new NotFound("Colaborador não encontrado");
         }
 
-        return ErrorHandler.successResponse(employee, "Colaborador atualizado com sucesso");
+        return ResponseHandler.success(employee, "Colaborador atualizado com sucesso");
     }
 
     /**
@@ -240,7 +240,7 @@ export class EmployeesController {
         if (!deleted) {
             throw new NotFound("Colaborador não encontrado");
         }
-        return ErrorHandler.successResponse(deleted, "Colaborador removido com sucesso");
+        return ResponseHandler.success(deleted, "Colaborador removido com sucesso");
     }
 
     /**
@@ -318,7 +318,7 @@ export class EmployeesController {
         @BodyParams("value") value: string
     ) {
         const document = await this.employeeService.sendDocument(id, documentTypeId, value);
-        return ErrorHandler.successResponse(document, "Documento enviado com sucesso");
+        return ResponseHandler.success(document, "Documento enviado com sucesso");
     }
 
     /**
