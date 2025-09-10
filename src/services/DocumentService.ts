@@ -5,6 +5,7 @@ import { DocumentTypeRepository } from "../repositories/index.js";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { Document, DocumentStatus } from "../models/Document";
 import { BadRequest, NotFound } from "@tsed/exceptions";
+import { DOCUMENT_REPOSITORY_TOKEN, DOCUMENT_TYPE_REPOSITORY_TOKEN, EMPLOYEE_REPOSITORY_TOKEN } from "../config/providers.js";
 import { 
     ListPendingDocumentsDto, 
     PendingDocumentResponseDto, 
@@ -37,9 +38,9 @@ export class DocumentService {
      * @param employeeRepository - Repositório para validação de colaboradores
      */
     constructor(
-        @Inject() private documentRepository: DocumentRepository,
-        @Inject() private documentTypeRepository: DocumentTypeRepository,
-        @Inject() private employeeRepository: EmployeeRepository
+        @Inject(DOCUMENT_REPOSITORY_TOKEN) private documentRepository: DocumentRepository,
+        @Inject(DOCUMENT_TYPE_REPOSITORY_TOKEN) private documentTypeRepository: DocumentTypeRepository,
+        @Inject(EMPLOYEE_REPOSITORY_TOKEN) private employeeRepository: EmployeeRepository
     ) {}
 
     /**
@@ -92,10 +93,10 @@ export class DocumentService {
             throw new NotFound("Document type not found");
         }
 
-        // Cria o documento com conversão de IDs para ObjectId
+        // Cria o documento com IDs como string
         const documentData = {
-            employeeId: new Types.ObjectId(dto.employeeId),
-            documentTypeId: new Types.ObjectId(dto.documentTypeId),
+            employeeId: dto.employeeId,
+            documentTypeId: dto.documentTypeId,
             fileName: dto.fileName.trim(),
             filePath: dto.filePath.trim(),
             fileSize: dto.fileSize,
@@ -189,7 +190,7 @@ export class DocumentService {
 
             // ETAPA 2b: Aplicar filtro por documentTypeId se fornecido
             const filteredRequiredTypes = documentTypeId 
-                ? requiredTypes.filter(type => type._id?.toString() === documentTypeId)
+                ? requiredTypes.filter(type => (type as any).id?.toString() === documentTypeId)
                 : requiredTypes;
 
             if (filteredRequiredTypes.length === 0) {
@@ -198,7 +199,7 @@ export class DocumentService {
 
             // ETAPA 2c: Buscar documentos já enviados pelo colaborador
             const sentDocumentsData = await this.documentRepository.list({
-                employeeId: employee._id?.toString(),
+                employeeId: (employee as any).id?.toString(),
                 status: DocumentStatus.SENT
             }, { page: 1, limit: 1000 });
 
@@ -209,20 +210,20 @@ export class DocumentService {
 
             // ETAPA 2e: Identificar tipos pendentes (obrigatórios - enviados)
             const pendingTypes = filteredRequiredTypes.filter(
-                type => !sentTypeIds.has(type._id?.toString())
+                type => !sentTypeIds.has((type as any).id?.toString())
             );
 
             // ETAPA 2f: Criar "documentos virtuais" para cada tipo pendente
             for (const pendingType of pendingTypes) {
                 const pendingDocument: PendingDocumentResponseDto = {
-                    employeeId: employee._id?.toString() || '',
+                    employeeId: (employee as any).id?.toString() || '',
                     employeeName: employee.name || '',
                     employeeDocument: employee.document || '',
-                    documentTypeId: pendingType._id?.toString() || '',
+                    documentTypeId: (pendingType as any).id?.toString() || '',
                     documentTypeName: pendingType.name || '',
                     status: DocumentStatus.PENDING,
                     isPending: true,
-                    createdAt: pendingType.createdAt || new Date(),
+                    createdAt: (pendingType as any).createdAt || new Date(),
                     updatedAt: new Date()
                 };
 
@@ -287,7 +288,7 @@ export class DocumentService {
      * @param dto - Dados parciais para atualização
      * @returns Promise com documento atualizado ou null se não encontrado
      */
-    async updateDocument(id: string, dto: { name?: string; status?: DocumentStatus }): Promise<Document | null> {
+    async updateDocument(id: string, dto: { fileName?: string; status?: DocumentStatus }): Promise<Document | null> {
         // Valida formato do ObjectId
         if (!Types.ObjectId.isValid(id)) {
             throw new BadRequest("Invalid document ID format");
@@ -301,8 +302,8 @@ export class DocumentService {
 
         // Prepara dados para atualização
         const updateData: Partial<Document> = {};
-        if (dto.name?.trim()) {
-            updateData.name = dto.name.trim();
+        if (dto.fileName?.trim()) {
+            updateData.fileName = dto.fileName.trim();
         }
         if (dto.status) {
             updateData.status = dto.status;

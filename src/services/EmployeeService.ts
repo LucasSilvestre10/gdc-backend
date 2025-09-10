@@ -3,6 +3,7 @@ import { BadRequest } from "@tsed/exceptions";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { DocumentTypeRepository } from "../repositories/index.js";
 import { DocumentRepository } from "../repositories/DocumentRepository.js";
+import { EmployeeDocumentTypeLinkRepository } from "../repositories/EmployeeDocumentTypeLinkRepository.js";
 import { Employee } from "../models/Employee";
 import { DocumentType } from "../models/DocumentType";
 import { DocumentStatus } from "../models/Document";
@@ -35,7 +36,8 @@ export class EmployeeService {
   constructor(
     @Inject() private employeeRepo: EmployeeRepository,
     @Inject() private documentTypeRepo: DocumentTypeRepository,
-    @Inject() private documentRepo: DocumentRepository
+    @Inject() private documentRepo: DocumentRepository,
+    @Inject() private linkRepo: EmployeeDocumentTypeLinkRepository
   ) {}
 
   /**
@@ -71,29 +73,103 @@ export class EmployeeService {
   }
 
   /**
-   * Cria novo colaborador com validações de negócio
+   * Cria novo colaborador com tratamento inteligente de CPF
    * 
    * Regras de Negócio:
-   * - CPF deve ser único entre colaboradores ativos
+   * - CPF deve ser único entre colaboradores ativos (campo document)
    * - Dados obrigatórios validados pelo DTO
    * - Colaborador criado automaticamente como ativo
-   * - Timestamps de auditoria aplicados automaticamente
+   * - Tratamento especial quando CPF é também documento obrigatório:
+   *   * Valida se valor confere com CPF de identificação
+   *   * Cria documento CPF automaticamente como SENT
+   *   * Evita duplicação de dados
    * 
    * @param dto - Dados do colaborador para criação
    * @returns Promise com colaborador criado
-   * @throws BadRequest se CPF já existir ou dados inválidos
+   * @throws BadRequest se CPF já existir, dados inválidos ou inconsistência
    */
-  async createEmployee(dto: Partial<Employee>): Promise<Employee> {
-    // Implementa regra de negócio: CPF único por colaborador ativo
-    if (dto.document) {
-      const existingEmployee = await this.employeeRepo.findByDocument(dto.document);
-      if (existingEmployee) {
-        throw new BadRequest("Employee with this document already exists");
-      }
+  async create(dto: any): Promise<Employee> {
+    // Verificar se CPF já existe
+    const existingEmployee = await this.employeeRepo.findByDocument(dto.document);
+    if (existingEmployee) {
+      throw new BadRequest(`Já existe um colaborador cadastrado com o CPF ${dto.document}`);
     }
-    
-    // Delega criação para repositório após validações
-    return this.employeeRepo.create(dto);
+
+    // Criar colaborador
+    const employee = await this.employeeRepo.create({
+      name: dto.name,
+      document: dto.document,
+      hiredAt: dto.hiredAt || new Date()
+    });
+
+    // Processar documentos obrigatórios se fornecidos
+    if (dto.requiredDocuments?.length) {
+      await this.processRequiredDocuments((employee as any)._id.toString(), dto.requiredDocuments);
+    }
+
+    return employee;
+  }
+
+  /**
+   * Processa documentos obrigatórios com tratamento especial para CPF
+   */
+  private async processRequiredDocuments(
+    employeeId: string, 
+    requiredDocuments: Array<{ documentTypeId: string; value?: string }>
+  ): Promise<void> {
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
+    }
+
+    for (const reqDoc of requiredDocuments) {
+      // Buscar o tipo de documento
+      const documentType = await this.documentTypeRepo.findById(reqDoc.documentTypeId);
+      if (!documentType) {
+        throw new BadRequest(`Tipo de documento ${reqDoc.documentTypeId} não encontrado`);
+      }
+
+      // Verificar se é tipo CPF
+      const isCpfType = this.isCpfDocumentType(documentType.name);
+      
+      if (isCpfType) {
+        // Validar valor do CPF se fornecido
+        if (reqDoc.value && reqDoc.value !== employee.document) {
+          throw new BadRequest(
+            `CPF fornecido (${reqDoc.value}) não confere com o CPF de identificação do colaborador (${employee.document})`
+          );
+        }
+
+        // Criar documento CPF automaticamente como SENT
+        await this.documentRepo.create({
+          value: employee.document,
+          status: DocumentStatus.SENT,
+          employeeId: employeeId,
+          documentTypeId: reqDoc.documentTypeId
+        });
+      } else {
+        // Para outros documentos, criar como PENDING ou SENT
+        await this.documentRepo.create({
+          value: reqDoc.value || "",
+          status: reqDoc.value ? DocumentStatus.SENT : DocumentStatus.PENDING,
+          employeeId: employeeId,
+          documentTypeId: reqDoc.documentTypeId
+        });
+      }
+
+      // Criar vínculo ativo no embedded array
+      await this.employeeRepo.addRequiredTypes(employeeId, [reqDoc.documentTypeId]);
+    }
+  }
+
+  /**
+   * Verifica se um tipo de documento é CPF
+   */
+  private isCpfDocumentType(documentTypeName: string): boolean {
+    const name = documentTypeName.toLowerCase();
+    return name.includes('cpf') || 
+           name.includes('cadastro de pessoa física') ||
+           name === 'cpf';
   }
 
   /**
@@ -117,35 +193,86 @@ export class EmployeeService {
   }
 
   /**
-   * Vincula tipos de documento obrigatórios ao colaborador
+   * Busca colaboradores por nome ou CPF (campos do modelo Employee)
+   */
+  async searchByNameOrCpf(
+    query: string,
+    filters: any = {}
+  ): Promise<{ items: Employee[]; total: number }> {
+    // Busca unificada por nome ou CPF em uma única query
+    const employees = await this.employeeRepo.searchByNameOrCpf(query, filters);
+
+    // Aplicar paginação
+    const startIndex = ((filters.page || 1) - 1) * (filters.limit || 10);
+    const endIndex = startIndex + (filters.limit || 10);
+    const paginatedEmployees = employees.slice(startIndex, endIndex);
+
+    return {
+      items: paginatedEmployees,
+      total: employees.length
+    };
+  }
+
+  /**
+   * Valida formato de CPF
+   */
+  private isValidCpfFormat(value: string): boolean {
+    return /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(value);
+  }
+
+  /**
+   * Verifica se colaborador atende ao filtro de status
+   */
+  private matchesStatusFilter(employee: Employee, status?: 'active' | 'inactive' | 'all'): boolean {
+    if (!status || status === 'all') return true;
+    if (status === 'active') return employee.isActive === true;
+    if (status === 'inactive') return employee.isActive === false;
+    return true;
+  }
+
+  /**
+   * Vincula tipos de documento obrigatórios com tratamento especial para CPF
    * 
    * Funcionalidades:
    * - Implementa vinculação múltipla de tipos de documento
    * - Valida existência de todos os tipos antes da vinculação
-   * - Evita duplicatas automáticamente no repositório
-   * - Suporte a operação em lote para eficiência
-   * 
-   * Regras de Negócio:
-   * - Todos os tipos devem existir e estar ativos
-   * - Colaborador deve existir e estar ativo
-   * - Operação é atômica (falha se qualquer tipo não existir)
+   * - Tratamento especial quando CPF é documento obrigatório
+   * - Cria documento CPF automaticamente como SENT
    * 
    * @param employeeId - ID do colaborador para vincular tipos
-   * @param typeIds - Array de IDs dos tipos de documento
+   * @param typeIds - Array de IDs dos tipos de documentos a vincular
    * @returns Promise<void>
-   * @throws Error se algum tipo não existir ou colaborador inativo
+   * @throws BadRequest se algum tipo não existir ou colaborador inativo
    */
   async linkDocumentTypes(employeeId: string, typeIds: string[]): Promise<void> {
-    // Validação de entrada
     if (!typeIds?.length) return;
 
-    // Valida existência de todos os tipos de documento
-    const types = await this.documentTypeRepo.findByIds(typeIds);
-    if (types.length !== typeIds.length) {
-      throw new Error("Algum tipo de documento não existe");
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
     }
-    
-    // Executa vinculação após validações
+
+    // Verificar se todos os tipos de documento existem
+    const documentTypes = await this.documentTypeRepo.findByIds(typeIds);
+    if (documentTypes.length !== typeIds.length) {
+      throw new BadRequest("Um ou mais tipos de documento não foram encontrados");
+    }
+
+    for (const documentTypeId of typeIds) {
+      // Verificar se é CPF e criar documento automaticamente
+      const documentType = documentTypes.find(dt => (dt as any)._id.toString() === documentTypeId);
+      if (documentType && this.isCpfDocumentType(documentType.name)) {
+        // Criar documento CPF automaticamente como SENT
+        await this.documentRepo.create({
+          value: employee.document,
+          status: DocumentStatus.SENT,
+          employeeId,
+          documentTypeId
+        });
+      }
+    }
+
+    // Executar vinculação
     await this.employeeRepo.addRequiredTypes(employeeId, typeIds);
   }
 
@@ -227,11 +354,11 @@ export class EmployeeService {
 
     // Classifica tipos como enviados ou pendentes
     const sent = requiredTypes.filter(type => 
-      sentTypeIds.has(type._id?.toString() ?? "")
+      sentTypeIds.has((type as any)._id?.toString() ?? "")
     );
     
     const pending = requiredTypes.filter(type => 
-      !sentTypeIds.has(type._id?.toString() ?? "")
+      !sentTypeIds.has((type as any)._id?.toString() ?? "")
     );
 
     return { sent, pending };
@@ -305,5 +432,131 @@ export class EmployeeService {
 
     // Executa restauração (não precisa validar status atual)
     return await this.employeeRepo.restore(id);
+  }
+
+  /**
+   * Lista vínculos de tipos de documento do colaborador
+   * 
+   * @param employeeId - ID do colaborador
+   * @param status - Filtro de status (active|inactive|all)
+   * @returns Promise com lista de vínculos
+   */
+  async getRequiredDocuments(employeeId: string, status: string = "all"): Promise<any[]> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
+    }
+
+    const statusFilter = status as 'active' | 'inactive' | 'all';
+    const links = await this.linkRepo.findByEmployee(employeeId, statusFilter);
+    
+    return links.map(link => ({
+      documentType: link.documentTypeId,
+      active: link.active,
+      createdAt: link.createdAt,
+      updatedAt: link.updatedAt,
+      deletedAt: link.deletedAt
+    }));
+  }
+
+  /**
+   * Restaura vínculo específico de tipo de documento
+   * 
+   * @param employeeId - ID do colaborador
+   * @param documentTypeId - ID do tipo de documento
+   * @returns Promise<void>
+   */
+  async restoreDocumentTypeLink(employeeId: string, documentTypeId: string): Promise<void> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
+    }
+
+    // Valida tipo de documento
+    const documentType = await this.documentTypeRepo.findById(documentTypeId);
+    if (!documentType) {
+      throw new BadRequest("Tipo de documento não encontrado");
+    }
+
+    // Restaura ou cria vínculo
+    const existingLink = await this.linkRepo.findLink(employeeId, documentTypeId);
+    if (existingLink) {
+      await this.linkRepo.restore(employeeId, documentTypeId);
+    } else {
+      await this.linkRepo.create(employeeId, documentTypeId);
+    }
+  }
+
+  /**
+   * Lista documentos do colaborador
+   * 
+   * @param employeeId - ID do colaborador
+   * @param status - Filtro de status (active|inactive|all)
+   * @returns Promise com lista de documentos
+   */
+  async getEmployeeDocuments(employeeId: string, status: string = "all"): Promise<any[]> {
+    // Valida colaborador
+    const employee = await this.employeeRepo.findById(employeeId);
+    if (!employee) {
+      throw new BadRequest("Colaborador não encontrado");
+    }
+
+    // TODO: Implementar busca de documentos reais
+    // Por enquanto retorna array vazio
+    return [];
+  }
+
+  /**
+   * Converte Employee para EmployeeListDto
+   */
+  private toEmployeeListDto(employee: Employee): any {
+    return {
+      id: (employee as any)._id,
+      name: employee.name,
+      document: employee.document,
+      hiredAt: employee.hiredAt,
+      isActive: employee.isActive,
+      createdAt: employee.createdAt,
+      updatedAt: employee.updatedAt,
+      deletedAt: employee.deletedAt
+    };
+  }
+
+  /**
+   * Lista colaboradores convertidos para DTO
+   */
+  async listAsDto(filter: any = {}, opts: { page?: number; limit?: number } = {}): Promise<{ items: any[]; total: number }> {
+    const result = await this.list(filter, opts);
+    return {
+      items: result.items.map(emp => this.toEmployeeListDto(emp)),
+      total: result.total
+    };
+  }
+
+  /**
+   * Converte vínculos para RequiredDocumentLinkDto
+   */
+  private toRequiredDocumentLinkDto(link: any): any {
+    return {
+      documentType: {
+        id: link.documentTypeId._id || link.documentTypeId,
+        name: link.documentTypeId.name || 'Nome não encontrado',
+        description: link.documentTypeId.description
+      },
+      active: link.active,
+      createdAt: link.createdAt,
+      updatedAt: link.updatedAt,
+      deletedAt: link.deletedAt
+    };
+  }
+
+  /**
+   * Lista vínculos convertidos para DTO
+   */
+  async getRequiredDocumentsAsDto(employeeId: string, status: string = "all"): Promise<any[]> {
+    const links = await this.getRequiredDocuments(employeeId, status);
+    return links.map(link => this.toRequiredDocumentLinkDto(link));
   }
 }
