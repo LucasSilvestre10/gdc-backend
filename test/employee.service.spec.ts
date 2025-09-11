@@ -2,7 +2,13 @@
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { EmployeeService } from "../src/services/EmployeeService";
 import { DocumentStatus } from "../src/models/Document";
+import { Employee } from "../src/models/Employee";
 import mongoose from "mongoose";
+
+/**
+ * Tipo auxiliar para representar Employee com _id do MongoDB nos testes
+ */
+type EmployeeWithId = Employee & { _id: string | mongoose.Types.ObjectId };
 
 /**
  * Testes unitários para EmployeeService
@@ -14,6 +20,7 @@ describe("EmployeeService", () => {
   let employeeRepo: any;
   let documentTypeRepo: any;
   let documentRepo: any;
+  let linkRepo: any;
 
   beforeEach(() => {
     // Mock dos repositories para isolar o service e testar apenas lógica de negócio
@@ -30,21 +37,31 @@ describe("EmployeeService", () => {
     };
 
     documentTypeRepo = {
-      findByIds: vi.fn()
+      findByIds: vi.fn(),
+      findById: vi.fn()
     };
 
     documentRepo = {
-      find: vi.fn()
+      find: vi.fn(),
+      create: vi.fn()
     };
 
-    service = new EmployeeService(employeeRepo, documentTypeRepo, documentRepo);
+    linkRepo = {
+      create: vi.fn(),
+      findByEmployee: vi.fn(),
+      softDelete: vi.fn(),
+      restore: vi.fn(),
+      findLink: vi.fn()
+    };
+
+    service = new EmployeeService(employeeRepo, documentTypeRepo, documentRepo, linkRepo);
   });
 
   /**
    * Testa o cadastro de colaborador conforme regras de negócio do sistema.
    * Valida que o DTO é passado corretamente para o repositório.
    */
-  describe("createEmployee", () => {
+  describe("create", () => {
     it("should create employee successfully with valid data", async () => {
       // DTO válido seguindo model Employee (CPF formatado, nome válido)
       const dto = { 
@@ -63,11 +80,15 @@ describe("EmployeeService", () => {
       employeeRepo.findByDocument.mockResolvedValue(null);
       employeeRepo.create.mockResolvedValue(employee);
 
-      const result = await service.createEmployee(dto);
+      const result = await service.create(dto);
       
       // Valida que verificou duplicata e criou corretamente
       expect(employeeRepo.findByDocument).toHaveBeenCalledWith("123.456.789-01");
-      expect(employeeRepo.create).toHaveBeenCalledWith(dto);
+      expect(employeeRepo.create).toHaveBeenCalledWith({
+        name: dto.name,
+        document: dto.document,
+        hiredAt: dto.hiredAt
+      });
       expect(result).toEqual(employee);
       expect(result.name).toBe("João Silva");
       expect(result.document).toBe("123.456.789-01");
@@ -90,8 +111,8 @@ describe("EmployeeService", () => {
       employeeRepo.findByDocument.mockResolvedValue(existingEmployee);
 
       // Deve lançar erro por CPF duplicado
-      await expect(service.createEmployee(dto))
-        .rejects.toThrow("Employee with this document already exists");
+      await expect(service.create(dto))
+        .rejects.toThrow("Já existe um colaborador cadastrado com o CPF 123.456.789-01");
       
       expect(employeeRepo.findByDocument).toHaveBeenCalledWith("123.456.789-01");
       expect(employeeRepo.create).not.toHaveBeenCalled();
@@ -109,13 +130,19 @@ describe("EmployeeService", () => {
         requiredDocumentTypes: []
       };
       
+      // Mock: verifica que não encontrou colaborador com document undefined
+      employeeRepo.findByDocument.mockResolvedValue(null);
       employeeRepo.create.mockResolvedValue(employee);
 
-      const result = await service.createEmployee(dto);
+      const result = await service.create(dto);
       
-      // Não deve verificar duplicata quando document não é fornecido
-      expect(employeeRepo.findByDocument).not.toHaveBeenCalled();
-      expect(employeeRepo.create).toHaveBeenCalledWith(dto);
+      // Deve verificar duplicata mesmo quando document é undefined
+      expect(employeeRepo.findByDocument).toHaveBeenCalledWith(undefined);
+      expect(employeeRepo.create).toHaveBeenCalledWith({
+        name: dto.name,
+        document: undefined,
+        hiredAt: dto.hiredAt
+      });
       expect(result).toEqual(employee);
     });
   });
@@ -187,7 +214,7 @@ describe("EmployeeService", () => {
 
       const result = await service.list();
 
-      expect(employeeRepo.list).toHaveBeenCalledWith({}, {});
+      expect(employeeRepo.list).toHaveBeenCalledWith({}, { page: 1, limit: 20 });
       expect(result.items).toHaveLength(0);
       expect(result.total).toBe(0);
     });
@@ -213,7 +240,7 @@ describe("EmployeeService", () => {
 
       expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
       expect(result?.name).toBe("João Silva");
-      expect(result?._id).toBe(employeeId);
+      expect((result as EmployeeWithId)?._id).toBe(employeeId);
     });
 
     it("should return null when employee not found", async () => {
@@ -247,28 +274,48 @@ describe("EmployeeService", () => {
         { _id: new mongoose.Types.ObjectId(typeIds[1]), name: "Carteira de Trabalho" }
       ];
 
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01"
+      };
+
+      employeeRepo.findById.mockResolvedValue(employee);
       documentTypeRepo.findByIds.mockResolvedValue(types);
+      linkRepo.create.mockResolvedValue(undefined);
       employeeRepo.addRequiredTypes.mockResolvedValue(undefined);
 
       await service.linkDocumentTypes(employeeId, typeIds);
 
-      // Valida que buscou os tipos e vinculou corretamente
+      // Valida que buscou o colaborador e tipos, depois vinculou
+      expect(employeeRepo.findById).toHaveBeenCalledWith(employeeId);
       expect(documentTypeRepo.findByIds).toHaveBeenCalledWith(typeIds);
+      expect(linkRepo.create).toHaveBeenCalledTimes(2);
       expect(employeeRepo.addRequiredTypes).toHaveBeenCalledWith(employeeId, typeIds);
     });
 
     it("should throw error when some document types do not exist", async () => {
       const employeeId = new mongoose.Types.ObjectId().toString();
-      const typeIds = ["type1", "type2"];
+      const typeIds = [
+        new mongoose.Types.ObjectId().toString(),
+        new mongoose.Types.ObjectId().toString()
+      ];
+      
+      const employee = {
+        _id: employeeId,
+        name: "João Silva",
+        document: "123.456.789-01"
+      };
       
       // Retorna apenas 1 tipo, mas foram solicitados 2
-      const types = [{ _id: "type1", name: "CPF" }];
+      const types = [{ _id: typeIds[0], name: "CPF" }];
 
+      employeeRepo.findById.mockResolvedValue(employee);
       documentTypeRepo.findByIds.mockResolvedValue(types);
 
       // Deve lançar erro por integridade referencial
       await expect(service.linkDocumentTypes(employeeId, typeIds))
-        .rejects.toThrow("Algum tipo de documento não existe");
+        .rejects.toThrow("Tipo de documento não encontrado");
     });
 
     it("should do nothing when typeIds array is empty", async () => {
@@ -289,19 +336,25 @@ describe("EmployeeService", () => {
    */
   describe("getDocumentationStatus", () => {
     it("should return sent and pending documents correctly", async () => {
-      const employeeId = new mongoose.Types.ObjectId();
-      const typeId1 = new mongoose.Types.ObjectId();
-      const typeId2 = new mongoose.Types.ObjectId();
-      const typeId3 = new mongoose.Types.ObjectId();
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const typeId1 = new mongoose.Types.ObjectId().toString();
+      const typeId2 = new mongoose.Types.ObjectId().toString();
+      const typeId3 = new mongoose.Types.ObjectId().toString();
 
-      // Colaborador com 3 tipos obrigatórios
+      // Colaborador existente
       const employee = {
         _id: employeeId,
         name: "João Silva",
         document: "123.456.789-01",
-        hiredAt: new Date(),
-        requiredDocumentTypes: [typeId1, typeId2, typeId3]
+        hiredAt: new Date()
       };
+
+      // Links ativos com tipos de documento
+      const activeLinks = [
+        { documentTypeId: { _id: typeId1 } },
+        { documentTypeId: { _id: typeId2 } },
+        { documentTypeId: { _id: typeId3 } }
+      ];
 
       // Tipos obrigatórios cadastrados
       const requiredTypes = [
@@ -314,7 +367,7 @@ describe("EmployeeService", () => {
       const sentDocuments = [
         { 
           _id: new mongoose.Types.ObjectId(),
-          name: "CPF João Silva",
+          value: "123.456.789-01",
           documentTypeId: typeId1,
           employeeId: employeeId,
           status: DocumentStatus.SENT
@@ -322,10 +375,11 @@ describe("EmployeeService", () => {
       ];
 
       employeeRepo.findById.mockResolvedValue(employee);
+      linkRepo.findByEmployee.mockResolvedValue(activeLinks);
       documentTypeRepo.findByIds.mockResolvedValue(requiredTypes);
       documentRepo.find.mockResolvedValue(sentDocuments);
 
-      const result = await service.getDocumentationStatus(employeeId.toString());
+      const result = await service.getDocumentationStatus(employeeId);
 
       // Valida separação correta: 1 enviado, 2 pendentes
       expect(result.sent).toHaveLength(1);
@@ -346,20 +400,20 @@ describe("EmployeeService", () => {
     });
 
     it("should return empty arrays when employee has no required documents", async () => {
-      const employeeId = new mongoose.Types.ObjectId();
+      const employeeId = new mongoose.Types.ObjectId().toString();
       
       // Colaborador sem documentos obrigatórios
       const employee = {
         _id: employeeId,
         name: "João Silva",
         document: "123.456.789-01",
-        hiredAt: new Date(),
-        requiredDocumentTypes: [] // Array vazio
+        hiredAt: new Date()
       };
 
       employeeRepo.findById.mockResolvedValue(employee);
+      linkRepo.findByEmployee.mockResolvedValue([]); // Sem links ativos
 
-      const result = await service.getDocumentationStatus(employeeId.toString());
+      const result = await service.getDocumentationStatus(employeeId);
 
       // Deve retornar arrays vazios sem erros
       expect(result.sent).toEqual([]);
@@ -368,20 +422,20 @@ describe("EmployeeService", () => {
 
     // NOVO TESTE: Cobre linha 51 - quando employee.requiredDocumentTypes é null/undefined
     it("should return empty arrays when employee has null requiredDocumentTypes", async () => {
-      const employeeId = new mongoose.Types.ObjectId();
+      const employeeId = new mongoose.Types.ObjectId().toString();
       
-      // Colaborador com requiredDocumentTypes undefined/null
+      // Colaborador sem links ativos
       const employee = {
         _id: employeeId,
         name: "João Silva",
         document: "123.456.789-01",
-        hiredAt: new Date(),
-        requiredDocumentTypes: null // null ao invés de array vazio
+        hiredAt: new Date()
       };
 
       employeeRepo.findById.mockResolvedValue(employee);
+      linkRepo.findByEmployee.mockResolvedValue([]); // Sem links ativos
 
-      const result = await service.getDocumentationStatus(employeeId.toString());
+      const result = await service.getDocumentationStatus(employeeId);
 
       // Deve tratar null como array vazio e retornar arrays vazios
       expect(result.sent).toEqual([]);
@@ -390,16 +444,20 @@ describe("EmployeeService", () => {
 
     // NOVO TESTE: Cobre linhas 69 e 73 - quando type._id é undefined
     it("should handle document types with undefined _id", async () => {
-      const employeeId = new mongoose.Types.ObjectId();
-      const typeId1 = new mongoose.Types.ObjectId();
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const typeId1 = new mongoose.Types.ObjectId().toString();
 
       const employee = {
         _id: employeeId,
         name: "João Silva",
         document: "123.456.789-01",
-        hiredAt: new Date(),
-        requiredDocumentTypes: [typeId1]
+        hiredAt: new Date()
       };
+
+      // Links ativos
+      const activeLinks = [
+        { documentTypeId: { _id: typeId1 } }
+      ];
 
       // Tipo com _id undefined (cenário de erro de dados)
       const requiredTypes = [
@@ -409,7 +467,7 @@ describe("EmployeeService", () => {
       const sentDocuments = [
         { 
           _id: new mongoose.Types.ObjectId(),
-          name: "CPF João Silva",
+          value: "123.456.789-01",
           documentTypeId: typeId1,
           employeeId: employeeId,
           status: DocumentStatus.SENT
@@ -417,10 +475,11 @@ describe("EmployeeService", () => {
       ];
 
       employeeRepo.findById.mockResolvedValue(employee);
+      linkRepo.findByEmployee.mockResolvedValue(activeLinks);
       documentTypeRepo.findByIds.mockResolvedValue(requiredTypes);
       documentRepo.find.mockResolvedValue(sentDocuments);
 
-      const result = await service.getDocumentationStatus(employeeId.toString());
+      const result = await service.getDocumentationStatus(employeeId);
 
       // Deve tratar _id undefined corretamente usando fallback para ""
       expect(result.sent).toHaveLength(0); // Não vai encontrar match com ""
@@ -430,17 +489,22 @@ describe("EmployeeService", () => {
 
     // TESTE ADICIONAL: Cenário onde todos os documentos foram enviados
     it("should return all documents as sent when all are submitted", async () => {
-      const employeeId = new mongoose.Types.ObjectId();
-      const typeId1 = new mongoose.Types.ObjectId();
-      const typeId2 = new mongoose.Types.ObjectId();
+      const employeeId = new mongoose.Types.ObjectId().toString();
+      const typeId1 = new mongoose.Types.ObjectId().toString();
+      const typeId2 = new mongoose.Types.ObjectId().toString();
 
       const employee = {
         _id: employeeId,
         name: "João Silva",
         document: "123.456.789-01",
-        hiredAt: new Date(),
-        requiredDocumentTypes: [typeId1, typeId2]
+        hiredAt: new Date()
       };
+
+      // Links ativos
+      const activeLinks = [
+        { documentTypeId: { _id: typeId1 } },
+        { documentTypeId: { _id: typeId2 } }
+      ];
 
       const requiredTypes = [
         { _id: typeId1, name: "CPF" },
@@ -451,14 +515,14 @@ describe("EmployeeService", () => {
       const sentDocuments = [
         { 
           _id: new mongoose.Types.ObjectId(),
-          name: "CPF João Silva",
+          value: "123.456.789-01",
           documentTypeId: typeId1,
           employeeId: employeeId,
           status: DocumentStatus.SENT
         },
         { 
           _id: new mongoose.Types.ObjectId(),
-          name: "RG João Silva",
+          value: "12.345.678-9",
           documentTypeId: typeId2,
           employeeId: employeeId,
           status: DocumentStatus.SENT
@@ -466,10 +530,11 @@ describe("EmployeeService", () => {
       ];
 
       employeeRepo.findById.mockResolvedValue(employee);
+      linkRepo.findByEmployee.mockResolvedValue(activeLinks);
       documentTypeRepo.findByIds.mockResolvedValue(requiredTypes);
       documentRepo.find.mockResolvedValue(sentDocuments);
 
-      const result = await service.getDocumentationStatus(employeeId.toString());
+      const result = await service.getDocumentationStatus(employeeId);
 
       // Todos enviados, nenhum pendente
       expect(result.sent).toHaveLength(2);
@@ -491,11 +556,13 @@ describe("EmployeeService", () => {
         new mongoose.Types.ObjectId().toString()
       ];
 
+      linkRepo.softDelete.mockResolvedValue(undefined);
       employeeRepo.removeRequiredTypes.mockResolvedValue(undefined);
 
       await service.unlinkDocumentTypes(employeeId, typeIds);
 
-      // Valida que múltiplos tipos foram desvinculados
+      // Valida que soft delete foi chamado para cada tipo e depois removeRequiredTypes
+      expect(linkRepo.softDelete).toHaveBeenCalledTimes(2);
       expect(employeeRepo.removeRequiredTypes).toHaveBeenCalledWith(employeeId, typeIds);
     });
 
@@ -553,10 +620,10 @@ describe("EmployeeService", () => {
 
     it("should throw error when ID is invalid", async () => {
       await expect(service.delete(""))
-        .rejects.toThrow("ID is required");
+        .rejects.toThrow("ID é obrigatório");
 
       await expect(service.delete("   "))
-        .rejects.toThrow("ID is required");
+        .rejects.toThrow("ID é obrigatório");
 
       expect(employeeRepo.findById).not.toHaveBeenCalled();
       expect(employeeRepo.softDelete).not.toHaveBeenCalled();
@@ -599,10 +666,10 @@ describe("EmployeeService", () => {
 
     it("should throw error when ID is invalid", async () => {
       await expect(service.restore(""))
-        .rejects.toThrow("ID is required");
+        .rejects.toThrow("ID é obrigatório");
 
       await expect(service.restore(null as any))
-        .rejects.toThrow("ID is required");
+        .rejects.toThrow("ID é obrigatório");
 
       expect(employeeRepo.restore).not.toHaveBeenCalled();
     });
