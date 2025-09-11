@@ -14,16 +14,25 @@ import { DocumentTypeService } from "../../services/DocumentTypeService.js";
 /**
  * Controller responsável por gerenciar os tipos de documento.
  * 
- * Endpoints:
- * - POST /document-types: Cria um novo tipo de documento.
- * - GET /document-types: Lista todos os tipos de documento com paginação opcional.
- * - GET /document-types/:id: Busca um tipo de documento pelo ID.
- * - GET /document-types/:id/employees: Lista colaboradores vinculados ao tipo de documento.
+ * Implementa operações CRUD completas seguindo padrões REST:
+ * - POST /document-types: Cria um novo tipo de documento
+ * - GET /document-types: Lista todos os tipos com paginação e filtros
+ * - GET /document-types/:id: Busca um tipo específico por ID
+ * - PUT /document-types/:id: Atualiza um tipo de documento
+ * - DELETE /document-types/:id: Remove um tipo (soft delete)
+ * - POST /document-types/:id/restore: Restaura um tipo removido
+ * - GET /document-types/:id/employees: Lista colaboradores vinculados
  * 
- * Métodos update e delete estão planejados para implementação futura.
+ * @route /document-types
+ * @controller DocumentTypesController
+ * @version 1.0.0
  */
 @Controller("/document-types")
 export class DocumentTypesController {
+  private static readonly DEFAULT_PAGE = 1;
+  private static readonly DEFAULT_LIMIT = 10;
+  private static readonly DEFAULT_STATUS = 'active';
+
   constructor(
     @Inject() private documentTypeService: DocumentTypeService
   ) {}
@@ -85,29 +94,31 @@ export class DocumentTypesController {
     }
   })
   async list(
-    @QueryParams("page") page: number = 1,
-    @QueryParams("limit") limit: number = 10,
+    @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
+    @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT,
     @QueryParams("name") name?: string,
     @QueryParams("status") status?: 'active' | 'inactive' | 'all'
   ) {
-    // Define "active" como padrão se nenhum status for fornecido
-    const defaultStatus = status || 'active';
-    
-    const result = await this.documentTypeService.list(
-      { name, status: defaultStatus },
-      { page, limit }
-    );
-    
-    return {
-      success: true,
-      data: result.items,
-      pagination: {
-        page,
-        limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / limit)
-      }
+    const filters = { 
+      name, 
+      status: status || DocumentTypesController.DEFAULT_STATUS 
     };
+    const options = { 
+      page: page || DocumentTypesController.DEFAULT_PAGE, 
+      limit: limit || DocumentTypesController.DEFAULT_LIMIT 
+    };
+    
+    const result = await this.documentTypeService.list(filters, options);
+    
+    return ResponseHandler.success({
+      items: result.items,
+      pagination: {
+        page: options.page,
+        limit: options.limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / options.limit)
+      }
+    }, "Tipos de documento listados com sucesso");
   }
 
   /**
