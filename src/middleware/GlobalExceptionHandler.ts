@@ -69,6 +69,18 @@ export class GlobalExceptionHandler {
       };
     }
 
+    // Tratamento específico para erro de JSON malformado
+    if (
+      exception.name === "SyntaxError" &&
+      exception.message?.includes("JSON")
+    ) {
+      return {
+        status: 400,
+        message: `O corpo da requisição está malformado. Certifique-se de enviar um JSON válido.`,
+        code: "INVALID_JSON_BODY",
+      };
+    }
+
     // Erros customizados do domínio
     switch (exception.name) {
       case "EmployeeNotFoundError":
@@ -199,13 +211,13 @@ export class GlobalExceptionHandler {
 
     // Log level baseado no status
     if (errorInfo.status >= 500) {
-      $log.error("🚨 Server Error:", logData);
+      $log.error(" Server Error:", logData);
       // Em produção, aqui você poderia enviar para um serviço de monitoramento
       // como Sentry, New Relic, etc.
     } else if (errorInfo.status >= 400) {
-      $log.warn("⚠️  Client Error:", logData);
+      $log.warn("Client Error:", logData);
     } else {
-      $log.info("ℹ️  Request Error:", logData);
+      $log.info("Request Error:", logData);
     }
   }
 
