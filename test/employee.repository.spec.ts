@@ -5,6 +5,7 @@ import { EmployeeRepository } from "../src/repositories/EmployeeRepository";
 describe("EmployeeRepository", () => {
   let repo: EmployeeRepository;
   let mockModel: any;
+  let mockMongooseService: any;
 
   // Antes de cada teste, cria um mock do modelo do Mongoose e instancia o repositório
   beforeEach(() => {
@@ -28,8 +29,14 @@ describe("EmployeeRepository", () => {
     
     mockModel.find.mockReturnValue(mockQuery);
     
-    // @ts-ignore
-    repo = new EmployeeRepository(mockModel);
+    // Mock do MongooseService
+    mockMongooseService = {
+      get: vi.fn().mockReturnValue({
+        model: vi.fn().mockReturnValue(mockModel)
+      })
+    };
+    
+    repo = new EmployeeRepository(mockMongooseService);
   });
 
   // Testa o método create
