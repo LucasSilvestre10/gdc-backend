@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts}", "!eslint.config.ts"],
+    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
     ignores: ["dist/**", "node_modules/**", "coverage/**", "eslint.config.ts"],
   },
   js.configs.recommended,
@@ -13,7 +13,7 @@ export default tseslint.config(
     languageOptions: {
       globals: globals.node,
       parserOptions: {
-        project: true,
+        project: ["./tsconfig.json", "./tsconfig.test.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
