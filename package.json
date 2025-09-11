@@ -9,7 +9,10 @@
     "barrels": "barrels",
     "start": "npm run barrels && nodemon src/index.ts",
     "start:prod": "cross-env NODE_ENV=production node --import @swc-node/register/esm-register src/index.js",
-    "config-project": "node config-project.cjs"
+    "config-project": "node config-project.cjs",
+    "lint": "eslint --ext .ts src/",
+    "lint:fix": "eslint --ext .ts src/ --fix",
+    "lint:check": "eslint --ext .ts src/ --max-warnings 0"
   },
   "dependencies": {
     "@swc-node/register": "^1.11.1",
@@ -53,6 +56,7 @@
     "typescript": "^5.9.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.35.0",
     "@tsed/cli-plugin-eslint": "6.6.3",
     "@tsed/cli-plugin-mongoose": "6.6.3",
     "@tsed/cli-plugin-vitest": "6.6.3",
@@ -64,11 +68,21 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^24.3.1",
     "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.43.0",
+    "@typescript-eslint/parser": "^8.43.0",
     "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.4.0",
+    "jiti": "^2.5.1",
     "mongodb-memory-server": "^10.2.0",
     "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
     "supertest": "^7.1.4",
     "tslib": "^2.8.1",
+    "typescript-eslint": "^8.43.0",
     "vitest": "^3.2.4"
   },
   "main": "index.js",
