@@ -5,54 +5,26 @@
 
 import type { Employee } from "../models/Employee";
 import type { DocumentType } from "../models/DocumentType";
+import type { Document } from "../models/Document";
 
 // Tipo base para documentos Mongoose com _id
 export interface MongoDocument {
   _id: string | { toString(): string };
 }
 
-// Filtros de listagem
-export interface ListFilter {
-  status?: "active" | "inactive" | "all";
-  isActive?: boolean | "all";
-  [key: string]: unknown;
+// Tipo para required document types
+export interface RequiredDocumentType {
+  documentTypeId: string | { toString(): string };
+  active?: boolean;
+  deletedAt?: Date | null;
 }
 
-// Opções de paginação
-export interface PaginationOptions {
-  page?: number;
-  limit?: number;
-}
+// Tipo para documentos com _id
+export type DocumentWithId = Document & MongoDocument;
 
-// Resultado paginado genérico
-export interface PaginationResult<T> {
-  items: T[];
-  total: number;
-}
-
-// Filtros de busca
-export interface SearchFilters {
-  status?: "active" | "inactive" | "all";
-  page?: number;
-  limit?: number;
-}
-
-// Sumário de documentação (para enriquecimento)
-export interface DocumentationSummary {
-  required: number;
-  sent: number;
-  pending: number;
-  hasRequiredDocuments: boolean;
-  isComplete: boolean;
-}
-
+// Tipo para document types com _id
 // Tipos para objetos Mongoose (com _id)
 export type EmployeeDocument = Employee & MongoDocument;
-export type DocumentTypeDocument = DocumentType & MongoDocument;
-
-// Tipo para documentos do modelo Document com _id
-export type DocumentWithId = import("../models/Document").Document &
-  MongoDocument;
 
 // Helper para extrair ID do Mongoose
 export function getMongoId(doc: MongoDocument): string {
@@ -102,6 +74,15 @@ export interface EmployeeDocumentsResult {
   documents: DocumentResponse[];
   hasRequiredDocuments: boolean;
   message?: string;
+}
+
+// Interface para resumo da documentação de um colaborador
+export interface DocumentationSummary {
+  total: number;
+  sent: number;
+  pending: number;
+  completionPercentage: number;
+  lastUpdated?: Date;
 }
 
 // Interface para enriquecer colaboradores
