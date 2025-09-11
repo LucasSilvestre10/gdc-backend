@@ -1,16 +1,17 @@
-import {join} from "node:path";
-import {Configuration} from "@tsed/di";
-import {application} from "@tsed/platform-http";
+import { join } from "node:path";
+import { Configuration } from "@tsed/di";
+import { application } from "@tsed/platform-http";
 import "@tsed/platform-log-request"; // remove this import if you don't want log request
 import "@tsed/platform-express"; // /!\ keep this import
 import "@tsed/ajv";
 import "@tsed/swagger";
 import "@tsed/mongoose";
-import {config} from "./config/index.js";
+import { config } from "./config/index.js";
 import "./models/index.js"; // Importa os modelos para registrar no Mongoose
 import "./repositories/index.js";
 import "./services/index.js";
 import * as rest from "./controllers/rest/index.js";
+import { GlobalExceptionHandler } from "./middleware/GlobalExceptionHandler.js";
 
 @Configuration({
   ...config,
@@ -18,15 +19,13 @@ import * as rest from "./controllers/rest/index.js";
   httpPort: process.env.PORT || 8083,
   httpsPort: false, // CHANGE
   mount: {
-    "/rest": [
-      ...Object.values(rest)
-    ],    
+    "/rest": [...Object.values(rest)],
   },
   swagger: [
     {
       path: "/doc",
-      specVersion: "3.0.1"
-    }
+      specVersion: "3.0.1",
+    },
   ],
   middlewares: [
     "cors",
@@ -34,15 +33,21 @@ import * as rest from "./controllers/rest/index.js";
     "compression",
     "method-override",
     "json-parser",
-    { use: "urlencoded-parser", options: { extended: true }}
+    { use: "urlencoded-parser", options: { extended: true } },
   ],
   views: {
     root: join(process.cwd(), "../views"),
     extensions: {
-      ejs: "ejs"
-    }
-  }
+      ejs: "ejs",
+    },
+  },
 })
 export class Server {
   protected app = application();
+
+  $afterRoutesInit(): void {
+    // Registra o middleware de tratamento global de erros
+    // Deve ser o último middleware para capturar todos os erros
+    this.app.use(GlobalExceptionHandler.handle);
+  }
 }
