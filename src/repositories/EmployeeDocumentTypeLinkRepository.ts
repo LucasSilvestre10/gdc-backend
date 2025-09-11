@@ -41,7 +41,7 @@ export class EmployeeDocumentTypeLinkRepository {
         employeeId: string, 
         status: 'active' | 'inactive' | 'all' = 'all'
     ): Promise<EmployeeDocumentTypeLink[]> {
-        let filter: any = { employeeId };
+        const filter: any = { employeeId };
         
         if (status === 'active') {
             filter.active = true;
