@@ -229,14 +229,24 @@ export class DocumentTypesController {
   @Returns(200, Array)
   @Returns(404, Object)
   @Returns(400, Object)
-  async getLinkedEmployees(@PathParams("id") id: string) {
+  async getLinkedEmployees(@PathParams("id") id: string, @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE, @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT) {
     // Verificar se o tipo de documento existe
     const documentType = await this.documentTypeService.findById(id);
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
     }
 
-    // Por enquanto retorna array vazio - será implementado quando tivermos o método no service
-    return ResponseHandler.success([], "Método será implementado no próximo commit");
+    // Buscar colaboradores vinculados ao tipo de documento
+    const result = await this.documentTypeService.getLinkedEmployees(id, { page, limit });
+    
+    return ResponseHandler.success({
+      items: result.items,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / limit)
+      }
+    }, "Colaboradores vinculados ao tipo de documento listados com sucesso");
   }
 }

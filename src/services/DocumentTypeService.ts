@@ -1,7 +1,8 @@
 import { Injectable, Inject } from "@tsed/di";
 import { DocumentType } from "../models/DocumentType.js";
 import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository.js";
-import { DOCUMENT_TYPE_REPOSITORY_TOKEN } from "../config/providers.js";
+import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
+import { DOCUMENT_TYPE_REPOSITORY_TOKEN, EMPLOYEE_REPOSITORY_TOKEN } from "../config/providers.js";
 import { BadRequest } from "@tsed/exceptions";
 import { ValidationUtils } from "../utils/ValidationUtils.js";
 
@@ -12,7 +13,8 @@ import { ValidationUtils } from "../utils/ValidationUtils.js";
 @Injectable()
 export class DocumentTypeService {
     constructor(
-        @Inject(DOCUMENT_TYPE_REPOSITORY_TOKEN) private documentTypeRepository: DocumentTypeRepository
+        @Inject(DOCUMENT_TYPE_REPOSITORY_TOKEN) private documentTypeRepository: DocumentTypeRepository,
+        @Inject(EMPLOYEE_REPOSITORY_TOKEN) private employeeRepository: EmployeeRepository
     ) {
         console.log('DocumentTypeService constructor');
         console.log('Repository type:', typeof this.documentTypeRepository);
@@ -185,5 +187,25 @@ export class DocumentTypeService {
 
         // Executa a restauração
         return await this.documentTypeRepository.restore(id);
+    }
+
+    /**
+     * Busca colaboradores vinculados a um tipo de documento
+     * @param documentTypeId - ID do tipo de documento
+     * @param options - Opções de paginação
+     * @returns Promise<{ items: Employee[], total: number }> - Lista paginada de colaboradores
+     * @throws BadRequest - Se ID inválido
+     */
+    async getLinkedEmployees(documentTypeId: string, options: { page: number; limit: number } = { page: 1, limit: 10 }): Promise<{ items: any[], total: number }> {
+        ValidationUtils.validateObjectId(documentTypeId);
+
+        // Verificar se o tipo de documento existe
+        const documentType = await this.findById(documentTypeId);
+        if (!documentType) {
+            return { items: [], total: 0 };
+        }
+
+        // Buscar colaboradores que têm este tipo de documento vinculado
+        return await this.employeeRepository.findByDocumentType(documentTypeId, options);
     }
 }

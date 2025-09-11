@@ -348,4 +348,47 @@ export class EmployeeRepository {
         
         return { items, total };
     }
+
+    /**
+     * Busca colaboradores que têm um tipo de documento específico vinculado
+     * 
+     * Funcionalidades:
+     * - Filtra apenas colaboradores ativos (isActive !== false)
+     * - Busca por vínculos ativos com o tipo de documento
+     * - Suporta paginação
+     * - Ordena por nome
+     * 
+     * @param documentTypeId - ID do tipo de documento
+     * @param options - Opções de paginação { page: number, limit: number }
+     * @returns Promise<{ items: Employee[], total: number }> - Lista paginada de colaboradores
+     */
+    async findByDocumentType(documentTypeId: string, options: { page: number; limit: number } = { page: 1, limit: 10 }): Promise<{ items: Employee[], total: number }> {
+        const { page, limit } = options;
+
+        // Filtro base para colaboradores ativos
+        const baseFilter = {
+            $or: [
+                { isActive: { $exists: false } },  // Considera como ativo se campo não existe
+                { isActive: { $ne: false } }       // Ou se explicitamente não é false
+            ]
+        };
+
+        // Filtro para colaboradores que têm o tipo de documento vinculado
+        // Nota: Os dados estão armazenados como array simples de IDs, não como estrutura complexa
+        const query = {
+            ...baseFilter,
+            'requiredDocumentTypes': documentTypeId
+        };
+
+        // Executa consulta paginada
+        const mongooseQuery = this.employeeModel.find(query)
+            .sort({ name: 1 })
+            .skip((page - 1) * limit)
+            .limit(limit);
+        
+        const items = await mongooseQuery.exec();
+        const total = await this.employeeModel.countDocuments(query);
+        
+        return { items, total };
+    }
 }
