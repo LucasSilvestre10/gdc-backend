@@ -1,11 +1,10 @@
 import { Injectable, Inject } from "@tsed/di";
-import { 
-  EmployeeNotFoundError, 
-  DocumentTypeNotFoundError, 
+import {
+  EmployeeNotFoundError,
+  DocumentTypeNotFoundError,
   DuplicateEmployeeError,
   InvalidObjectIdError,
-  ConflictError,
-  ValidationError
+  ValidationError,
 } from "../exceptions";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { DocumentTypeRepository } from "../repositories/index.js";
@@ -15,10 +14,26 @@ import { Employee } from "../models/Employee";
 import { DocumentType } from "../models/DocumentType";
 import { DocumentStatus } from "../models/Document";
 import { ValidationUtils } from "../utils/ValidationUtils.js";
+import type { DocumentWithId } from "../types/EmployeeServiceTypes";
+
+import type {
+  ListFilter,
+  PaginationOptions,
+  PaginationResult,
+  SearchFilters,
+  DocumentTypeDocument,
+  RequiredDocumentResponse,
+  EmployeeDocumentsResult,
+  EmployeeListResponse,
+  DocumentOverviewResponse,
+  SentDocumentResponse,
+  PendingDocumentResponse,
+  EnrichedEmployee,
+} from "../types/EmployeeServiceTypes";
 
 /**
  * Serviço de negócios para gerenciamento de colaboradores
- * 
+ *
  * Responsabilidades:
  * - Implementar regras de negócio específicas do domínio
  * - Orquestrar operações entre múltiplos repositórios
@@ -26,7 +41,7 @@ import { ValidationUtils } from "../utils/ValidationUtils.js";
  * - Gerenciar fluxo de documentação obrigatória do colaborador
  * - Implementar lógica de soft delete com validações
  * - Calcular status de documentação (enviados vs pendentes)
- * 
+ *
  * Funcionalidades:
  * - Cadastro e atualização de colaboradores
  * - Vinculação/desvinculação de tipos de documento obrigatórios
@@ -35,6 +50,10 @@ import { ValidationUtils } from "../utils/ValidationUtils.js";
  */
 @Injectable()
 export class EmployeeService {
+  // Helper para extrair ID do Mongoose
+  private extractId(doc: { _id: string | { toString(): string } }): string {
+    return typeof doc._id === "string" ? doc._id : doc._id.toString();
+  }
   /**
    * Injeta dependências necessárias através do sistema de DI do TS.ED
    * @param employeeRepo - Repositório para operações de colaboradores
@@ -50,42 +69,60 @@ export class EmployeeService {
 
   /**
    * Lista colaboradores ativos com paginação e filtros
-   * 
+   *
    * Funcionalidades:
    * - Delega para repositório com filtros de soft delete aplicados
    * - Suporta paginação para performance em grandes volumes
    * - Permite filtros customizados para busca específica
    * - Retorna dados estruturados para controle de paginação na API
-   * 
+   *
    * @param filter - Filtros adicionais para busca (nome, documento, etc.)
    * @param opts - Opções de paginação { page, limit }
    * @returns Promise com lista paginada e total de registros
    */
-  async list(filter: any = {}, opts: { page?: number; limit?: number } = {}): Promise<{ items: Employee[]; total: number }> {
-    return this.employeeRepo.list(filter, opts);
+  async list(
+    filter: ListFilter = {},
+    opts: PaginationOptions = {}
+  ): Promise<PaginationResult<Employee>> {
+    // Validação de status
+    const allowedStatus = ["active", "inactive", "all"];
+    if (filter.status && !allowedStatus.includes(filter.status)) {
+      throw new ValidationError(
+        `Parâmetro 'status' inválido: ${filter.status}`
+      );
+    }
+    // Validação de paginação
+    const page = Number(opts.page) || 1;
+    const limit = Number(opts.limit) || 20;
+    if (page < 1 || limit < 1) {
+      throw new ValidationError(
+        "Parâmetros de paginação devem ser maiores que zero"
+      );
+    }
+    return this.employeeRepo.list(filter, { page, limit });
   }
 
   /**
    * Busca colaborador ativo por ID
-   * 
+   *
    * Funcionalidades:
    * - Retorna apenas colaboradores ativos (soft delete)
    * - Usado para validações e consultas individuais
    * - Suporte a operações CRUD e validações de existência
-   * 
+   *
    * @param id - Identificador único do colaborador
    * @returns Promise com colaborador encontrado ou null
    */
   async findById(id: string): Promise<Employee | null> {
     try {
       // Valida formato do ObjectId
-      ValidationUtils.validateObjectId(id, 'ID do colaborador');
-      
+      ValidationUtils.validateObjectId(id, "ID do colaborador");
+
       return await this.employeeRepo.findById(id);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Trata erros de cast do Mongoose
       if (ValidationUtils.isCastError(error)) {
-        throw new InvalidObjectIdError('ID do colaborador');
+        throw new InvalidObjectIdError("ID do colaborador");
       }
       throw error;
     }
@@ -93,7 +130,7 @@ export class EmployeeService {
 
   /**
    * Cria novo colaborador com tratamento inteligente de CPF
-   * 
+   *
    * Regras de Negócio:
    * - CPF deve ser único entre colaboradores ativos (campo document)
    * - Dados obrigatórios validados pelo DTO
@@ -102,14 +139,21 @@ export class EmployeeService {
    *   * Valida se valor confere com CPF de identificação
    *   * Cria documento CPF automaticamente como SENT
    *   * Evita duplicação de dados
-   * 
+   *
    * @param dto - Dados do colaborador para criação
    * @returns Promise com colaborador criado
    * @throws BadRequest se CPF já existir, dados inválidos ou inconsistência
    */
-  async create(dto: any): Promise<Employee> {
+  async create(dto: {
+    name: string;
+    document: string;
+    hiredAt: Date;
+    requiredDocuments?: Array<{ documentTypeId: string; value?: string }>;
+  }): Promise<Employee> {
     // Verificar se CPF já existe
-    const existingEmployee = await this.employeeRepo.findByDocument(dto.document);
+    const existingEmployee = await this.employeeRepo.findByDocument(
+      dto.document
+    );
     if (existingEmployee) {
       throw new DuplicateEmployeeError(dto.document);
     }
@@ -118,12 +162,15 @@ export class EmployeeService {
     const employee = await this.employeeRepo.create({
       name: dto.name,
       document: dto.document,
-      hiredAt: dto.hiredAt || new Date()
+      hiredAt: dto.hiredAt || new Date(),
     });
 
     // Processar documentos obrigatórios se fornecidos
     if (dto.requiredDocuments?.length) {
-      await this.processRequiredDocuments((employee as any)._id.toString(), dto.requiredDocuments);
+      const employeeId = this.extractId(
+        employee as unknown as { _id: string | { toString(): string } }
+      );
+      await this.processRequiredDocuments(employeeId, dto.requiredDocuments);
     }
 
     return employee;
@@ -133,7 +180,7 @@ export class EmployeeService {
    * Processa documentos obrigatórios com tratamento especial para CPF
    */
   private async processRequiredDocuments(
-    employeeId: string, 
+    employeeId: string,
     requiredDocuments: Array<{ documentTypeId: string; value?: string }>
   ): Promise<void> {
     const employee = await this.employeeRepo.findById(employeeId);
@@ -143,14 +190,16 @@ export class EmployeeService {
 
     for (const reqDoc of requiredDocuments) {
       // Buscar o tipo de documento
-      const documentType = await this.documentTypeRepo.findById(reqDoc.documentTypeId);
+      const documentType = await this.documentTypeRepo.findById(
+        reqDoc.documentTypeId
+      );
       if (!documentType) {
         throw new DocumentTypeNotFoundError(reqDoc.documentTypeId);
       }
 
       // Verificar se é tipo CPF
       const isCpfType = this.isCpfDocumentType(documentType.name);
-      
+
       if (isCpfType) {
         // Validar valor do CPF se fornecido
         if (reqDoc.value && reqDoc.value !== employee.document) {
@@ -164,7 +213,7 @@ export class EmployeeService {
           value: employee.document,
           status: DocumentStatus.SENT,
           employeeId: employeeId,
-          documentTypeId: reqDoc.documentTypeId
+          documentTypeId: reqDoc.documentTypeId,
         });
       } else {
         // Para outros documentos, criar como PENDING ou SENT
@@ -172,12 +221,14 @@ export class EmployeeService {
           value: reqDoc.value || "",
           status: reqDoc.value ? DocumentStatus.SENT : DocumentStatus.PENDING,
           employeeId: employeeId,
-          documentTypeId: reqDoc.documentTypeId
+          documentTypeId: reqDoc.documentTypeId,
         });
       }
 
       // Criar vínculo ativo no embedded array
-      await this.employeeRepo.addRequiredTypes(employeeId, [reqDoc.documentTypeId]);
+      await this.employeeRepo.addRequiredTypes(employeeId, [
+        reqDoc.documentTypeId,
+      ]);
     }
   }
 
@@ -186,31 +237,36 @@ export class EmployeeService {
    */
   private isCpfDocumentType(documentTypeName: string): boolean {
     const name = documentTypeName.toLowerCase();
-    return name.includes('cpf') || 
-           name.includes('cadastro de pessoa física') ||
-           name === 'cpf';
+    return (
+      name.includes("cpf") ||
+      name.includes("cadastro de pessoa física") ||
+      name === "cpf"
+    );
   }
 
   /**
    * Atualiza dados de colaborador existente
-   * 
+   *
    * Funcionalidades:
    * - Atualiza apenas colaboradores ativos (soft delete aplicado)
    * - Valida existência antes da atualização
    * - Preserva integridade de dados relacionados
    * - Atualiza timestamp automaticamente
-   * 
+   *
    * @param id - ID do colaborador a ser atualizado
    * @param dto - Dados parciais para atualização
    * @returns Promise com colaborador atualizado ou null se não encontrado
    */
-  async updateEmployee(id: string, dto: Partial<Employee>): Promise<Employee | null> {
+  async updateEmployee(
+    id: string,
+    dto: Partial<Employee>
+  ): Promise<Employee | null> {
     // Valida formato do ObjectId
-    ValidationUtils.validateObjectId(id, 'ID do colaborador');
-    
+    ValidationUtils.validateObjectId(id, "ID do colaborador");
+
     // TODO: Adicionar validação de CPF único se document estiver no DTO
     // if (dto.document) { ... }
-    
+
     return this.employeeRepo.update(id, dto);
   }
 
@@ -219,56 +275,75 @@ export class EmployeeService {
    */
   async searchByNameOrCpf(
     query: string,
-    filters: any = {}
+    filters: SearchFilters = {}
   ): Promise<{ items: Employee[]; total: number }> {
-    // Extrai opções de paginação dos filtros
-    const opts = {
-      page: filters.page || 1,
-      limit: filters.limit || 20
-    };
-    
+    // Validação de query
+    if (!query || typeof query !== "string" || query.trim().length < 2) {
+      throw new ValidationError(
+        "Parâmetro 'query' deve ter pelo menos 2 caracteres"
+      );
+    }
+    // Validação de status
+    const allowedStatus = ["active", "inactive", "all"];
+    if (filters.status && !allowedStatus.includes(filters.status)) {
+      throw new ValidationError(
+        `Parâmetro 'status' inválido: ${filters.status}`
+      );
+    }
+    // Validação de paginação
+    const page = Number(filters.page) || 1;
+    const limit = Number(filters.limit) || 20;
+    if (page < 1 || limit < 1) {
+      throw new ValidationError(
+        "Parâmetros de paginação devem ser maiores que zero"
+      );
+    }
+    const opts = { page, limit };
     // Busca unificada por nome ou CPF com paginação no MongoDB
-    return await this.employeeRepo.searchByNameOrCpf(query, filters, opts);
-  }
-
-  /**
-   * Valida formato de CPF
-   */
-  private isValidCpfFormat(value: string): boolean {
-    return /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(value);
+    return await this.employeeRepo.searchByNameOrCpf(
+      query.trim(),
+      filters,
+      opts
+    );
   }
 
   /**
    * Verifica se colaborador atende ao filtro de status
    */
-  private matchesStatusFilter(employee: Employee, status?: 'active' | 'inactive' | 'all'): boolean {
-    if (!status || status === 'all') return true;
-    if (status === 'active') return employee.isActive === true;
-    if (status === 'inactive') return employee.isActive === false;
+  private matchesStatusFilter(
+    employee: Employee,
+    status?: "active" | "inactive" | "all"
+  ): boolean {
+    if (!status || status === "all") return true;
+    if (status === "active") return employee.isActive === true;
+    if (status === "inactive") return employee.isActive === false;
     return true;
   }
 
   /**
    * Vincula tipos de documento obrigatórios com tratamento especial para CPF
-   * 
+   *
    * Funcionalidades:
    * - Implementa vinculação múltipla de tipos de documento
    * - Valida existência de todos os tipos antes da vinculação
    * - Tratamento especial quando CPF é documento obrigatório
    * - Cria documento CPF automaticamente como SENT
-   * 
+   *
    * @param employeeId - ID do colaborador para vincular tipos
    * @param typeIds - Array de IDs dos tipos de documentos a vincular
    * @returns Promise<void>
    * @throws BadRequest se algum tipo não existir ou colaborador inativo
    */
-  async linkDocumentTypes(employeeId: string, typeIds: string[]): Promise<void> {
+  async linkDocumentTypes(
+    employeeId: string,
+    typeIds: string[]
+  ): Promise<void> {
     if (!typeIds?.length) return;
 
     // Validar ObjectIds
-    ValidationUtils.validateObjectId(employeeId, 'ID do colaborador');
+    ValidationUtils.validateObjectId(employeeId, "ID do colaborador");
     for (const typeId of typeIds) {
-      ValidationUtils.validateObjectId(typeId, 'ID do tipo de documento');
+      ValidationUtils.validateObjectId(typeId, "ID do tipo de documento");
     }
 
     const employee = await this.employeeRepo.findById(employeeId);
@@ -285,16 +360,21 @@ export class EmployeeService {
     for (const documentTypeId of typeIds) {
       // Criar vínculo na tabela de links
       await this.linkRepo.create(employeeId, documentTypeId);
-      
+
       // Verificar se é CPF e criar documento automaticamente
-      const documentType = documentTypes.find(dt => (dt as any)._id.toString() === documentTypeId);
+      const documentType = (documentTypes as DocumentTypeDocument[]).find(
+        (dt) => {
+          const id = typeof dt._id === "string" ? dt._id : dt._id.toString();
+          return id === documentTypeId;
+        }
+      );
       if (documentType && this.isCpfDocumentType(documentType.name)) {
         // Criar documento CPF automaticamente como SENT
         await this.documentRepo.create({
           value: employee.document,
           status: DocumentStatus.SENT,
           employeeId,
-          documentTypeId
+          documentTypeId,
         });
       }
     }
@@ -305,51 +385,54 @@ export class EmployeeService {
 
   /**
    * Desvincula tipos de documento do colaborador
-   * 
+   *
    * Funcionalidades:
    * - Remove vínculos de tipos de documento obrigatórios
    * - Operação segura que não falha se tipo já desvinculado
    * - Suporte a operação em lote para eficiência
    * - Mantém histórico de documentos já enviados
-   * 
+   *
    * Regras de Negócio:
    * - Colaborador deve existir e estar ativo
    * - Não remove documentos já enviados, apenas o vínculo obrigatório
    * - Operação é tolerante a tipos já desvinculados
-   * 
+   *
    * @param employeeId - ID do colaborador para desvincular tipos
    * @param typeIds - Array de IDs dos tipos de documento
    * @returns Promise<void>
    */
-  async unlinkDocumentTypes(employeeId: string, typeIds: string[]): Promise<void> {
+  async unlinkDocumentTypes(
+    employeeId: string,
+    typeIds: string[]
+  ): Promise<void> {
     // Validação de entrada
     if (!typeIds?.length) return;
-    
+
     // Desativar vínculos na tabela de links
     for (const documentTypeId of typeIds) {
       await this.linkRepo.softDelete(employeeId, documentTypeId);
     }
-    
+
     // Executa desvinculação no embedded array (manter compatibilidade)
     await this.employeeRepo.removeRequiredTypes(employeeId, typeIds);
   }
 
   /**
    * Calcula status da documentação obrigatória do colaborador
-   * 
+   *
    * Funcionalidades:
    * - Retorna documentos enviados vs pendentes por colaborador
    * - Cruza dados entre colaborador, tipos obrigatórios e documentos enviados
    * - Implementa lógica de negócio para acompanhamento de compliance
    * - Base para relatórios de documentação pendente
    * - Inclui valores dos documentos enviados
-   * 
+   *
    * Algoritmo:
    * 1. Valida existência do colaborador
    * 2. Obtém tipos de documento obrigatórios vinculados (nova tabela de links)
    * 3. Consulta documentos já enviados com status SENT
    * 4. Classifica tipos como "enviados" ou "pendentes" com valores
-   * 
+   *
    * @param employeeId - ID do colaborador para consulta
    * @returns Promise com objetos { sent: [], pending: [] } contendo tipos e valores
    * @throws Error se colaborador não encontrado
@@ -365,65 +448,78 @@ export class EmployeeService {
     }
 
     // Obtém vínculos ativos de tipos de documento obrigatórios
-    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    const activeLinks = await this.linkRepo.findByEmployee(
+      employeeId,
+      "active"
+    );
     if (!activeLinks.length) {
       return { sent: [], pending: [] }; // Nenhum documento obrigatório
     }
 
     // Extrai IDs dos tipos vinculados
-    const requiredTypeIds = activeLinks.map(link => 
-      (link.documentTypeId as any)._id?.toString() || link.documentTypeId.toString()
-    );
+    const requiredTypeIds = activeLinks.map((link) => {
+      const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+      return this.extractId(docType);
+    });
 
     // Busca dados dos tipos obrigatórios
-    const requiredTypes = await this.documentTypeRepo.findByIds(requiredTypeIds);
+    const requiredTypes =
+      await this.documentTypeRepo.findByIds(requiredTypeIds);
 
     // Consulta documentos já enviados pelo colaborador
     const sentDocuments = await this.documentRepo.find({
       employeeId,
       documentTypeId: { $in: requiredTypeIds },
       status: DocumentStatus.SENT,
-      isActive: true
+      isActive: true,
     });
 
     // Cria mapa com IDs dos tipos já enviados e seus valores
     const sentDocumentsMap = new Map(
-      sentDocuments.map(doc => [doc.documentTypeId.toString(), doc.value])
+      sentDocuments.map((doc) => [doc.documentTypeId.toString(), doc.value])
     );
 
     // Classifica tipos como enviados ou pendentes
     const sent = requiredTypes
-      .filter(type => sentDocumentsMap.has((type as any)._id?.toString() ?? ""))
-      .map(type => ({
-        _id: (type as any)._id,
-        name: type.name,
-        description: type.description,
-        isActive: type.isActive,
-        documentValue: sentDocumentsMap.get((type as any)._id?.toString() ?? "") || null
-      }));
-    
-    const pending = requiredTypes.filter(type => 
-      !sentDocumentsMap.has((type as any)._id?.toString() ?? "")
-    );
-    
+      .filter((type) => {
+        const docType = type as unknown as DocumentTypeDocument;
+        return sentDocumentsMap.has(this.extractId(docType));
+      })
+      .map((type) => {
+        const docType = type as unknown as DocumentTypeDocument;
+        const typeId = this.extractId(docType);
+        return {
+          _id: docType._id,
+          name: type.name,
+          description: type.description,
+          isActive: type.isActive,
+          documentValue: sentDocumentsMap.get(typeId) || null,
+        };
+      });
+
+    const pending = requiredTypes.filter((type) => {
+      const docType = type as unknown as DocumentTypeDocument;
+      return !sentDocumentsMap.has(this.extractId(docType));
+    });
+
     return { sent, pending };
   }
 
   /**
    * Soft delete de um colaborador (marca como inativo)
-   * 
+   *
    * Funcionalidades:
    * - Implementa desativação segura sem perda de dados
    * - Valida entrada e existência antes da operação
    * - Preserva histórico e relacionamentos para auditoria
    * - Permite reversão posterior através do método restore
-   * 
+   *
    * Regras de Negócio:
    * - ID obrigatório e válido
    * - Colaborador deve existir e estar ativo
    * - Operação é idempotente (pode ser chamada múltiplas vezes)
    * - Preserva documentos e vínculos para compliance
-   * 
+   *
    * @param id - ID do colaborador a ser desativado
    * @returns Promise<Employee | null> - Colaborador desativado ou null se não encontrado
    * @throws BadRequest se ID inválido
@@ -433,9 +529,9 @@ export class EmployeeService {
     if (!id?.trim()) {
       throw new ValidationError("ID é obrigatório");
     }
-    
+
     // Valida formato do ObjectId
-    ValidationUtils.validateObjectId(id, 'ID do colaborador');
+    ValidationUtils.validateObjectId(id, "ID do colaborador");
 
     // Verifica existência e status ativo do colaborador
     const employee = await this.employeeRepo.findById(id);
@@ -455,19 +551,19 @@ export class EmployeeService {
 
   /**
    * Reativa um colaborador (marca como ativo)
-   * 
+   *
    * Funcionalidades:
    * - Restaura colaborador previamente desativado
    * - Recupera acesso a todas as funcionalidades do sistema
    * - Remove marcadores de deleção mantendo histórico
    * - Operação complementar ao soft delete
-   * 
+   *
    * Regras de Negócio:
    * - ID obrigatório e válido
    * - Pode restaurar qualquer colaborador (ativo ou inativo)
    * - Operação é idempotente e segura
    * - Reativa vínculos e relacionamentos automaticamente
-   * 
+   *
    * @param id - ID do colaborador a ser reativado
    * @returns Promise<Employee | null> - Colaborador reativado ou null se não encontrado
    * @throws BadRequest se ID inválido
@@ -484,38 +580,51 @@ export class EmployeeService {
 
   /**
    * Lista vínculos de tipos de documento do colaborador
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @param status - Filtro de status (active|inactive|all)
    * @returns Promise com lista de vínculos
    */
-  async getRequiredDocuments(employeeId: string, status: string = "all"): Promise<any[]> {
+  async getRequiredDocuments(
+    employeeId: string,
+    status: string = "all"
+  ): Promise<RequiredDocumentResponse[]> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
       throw new EmployeeNotFoundError(employeeId);
     }
 
-    const statusFilter = status as 'active' | 'inactive' | 'all';
+    const statusFilter = status as "active" | "inactive" | "all";
     const links = await this.linkRepo.findByEmployee(employeeId, statusFilter);
-    
-    return links.map(link => ({
-      documentType: link.documentTypeId,
-      active: link.active,
-      createdAt: link.createdAt,
-      updatedAt: link.updatedAt,
-      deletedAt: link.deletedAt
-    }));
+
+    return links.map((link) => {
+      const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+      return {
+        documentType: {
+          id: this.extractId(docType),
+          name: docType.name || "Tipo não encontrado",
+          description: docType.description || null,
+        },
+        active: link.active,
+        createdAt: link.createdAt,
+        updatedAt: link.updatedAt,
+        deletedAt: link.deletedAt,
+      };
+    });
   }
 
   /**
    * Restaura vínculo específico de tipo de documento
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @param documentTypeId - ID do tipo de documento
    * @returns Promise<void>
    */
-  async restoreDocumentTypeLink(employeeId: string, documentTypeId: string): Promise<void> {
+  async restoreDocumentTypeLink(
+    employeeId: string,
+    documentTypeId: string
+  ): Promise<void> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -529,7 +638,10 @@ export class EmployeeService {
     }
 
     // Restaura ou cria vínculo
-    const existingLink = await this.linkRepo.findLink(employeeId, documentTypeId);
+    const existingLink = await this.linkRepo.findLink(
+      employeeId,
+      documentTypeId
+    );
     if (existingLink) {
       await this.linkRepo.restore(employeeId, documentTypeId);
     } else {
@@ -539,16 +651,15 @@ export class EmployeeService {
 
   /**
    * Lista documentos do colaborador
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @param status - Filtro de status (active|inactive|all)
    * @returns Promise com lista de documentos
    */
-  async getEmployeeDocuments(employeeId: string, status: string = "all"): Promise<{
-    documents: any[];
-    hasRequiredDocuments: boolean;
-    message?: string;
-  }> {
+  async getEmployeeDocuments(
+    employeeId: string,
+    status: string = "all"
+  ): Promise<EmployeeDocumentsResult> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -556,15 +667,18 @@ export class EmployeeService {
     }
 
     // Verifica se há tipos de documento vinculados
-    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    const activeLinks = await this.linkRepo.findByEmployee(
+      employeeId,
+      "active"
+    );
     const hasRequiredDocuments = activeLinks.length > 0;
 
     // Constrói filtro baseado no status
-    let filter: any = { employeeId };
-    
-    if (status === 'active') {
+    const filter: Record<string, unknown> = { employeeId };
+
+    if (status === "active") {
       filter.isActive = true;
-    } else if (status === 'inactive') {
+    } else if (status === "inactive") {
       filter.isActive = false;
     }
     // Para 'all', não aplica filtro de isActive
@@ -575,25 +689,37 @@ export class EmployeeService {
     // Converte para DTO com dados do tipo de documento
     const result = [];
     for (const doc of documents) {
-      const documentType = await this.documentTypeRepo.findById(doc.documentTypeId.toString());
-      
+      const documentType = await this.documentTypeRepo.findById(
+        doc.documentTypeId.toString()
+      );
+
       result.push({
-        id: (doc as any)._id,
+        id: this.extractId(
+          doc as unknown as { _id: string | { toString(): string } }
+        ),
         value: doc.value,
         status: doc.status,
         documentType: {
-          id: documentType ? (documentType as any)._id : doc.documentTypeId,
-          name: documentType?.name || 'Tipo não encontrado',
-          description: documentType?.description || null
+          id: documentType
+            ? this.extractId(
+                documentType as unknown as {
+                  _id: string | { toString(): string };
+                }
+              )
+            : doc.documentTypeId,
+          name: documentType?.name || "Tipo não encontrado",
+          description: documentType?.description || null,
         },
         employee: {
-          id: (employee as any)._id,
-          name: employee.name
+          id: this.extractId(
+            employee as unknown as { _id: string | { toString(): string } }
+          ),
+          name: employee.name,
         },
         isActive: doc.isActive,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt,
-        deletedAt: doc.deletedAt
+        deletedAt: doc.deletedAt,
       });
     }
 
@@ -601,104 +727,121 @@ export class EmployeeService {
     return {
       documents: result,
       hasRequiredDocuments,
-      message: !hasRequiredDocuments ? 
-        "Nenhum tipo de documento vinculado a este colaborador" : 
-        undefined
+      message: !hasRequiredDocuments
+        ? "Nenhum tipo de documento vinculado a este colaborador"
+        : undefined,
     };
   }
 
   /**
    * Converte Employee para EmployeeListDto
    */
-  private toEmployeeListDto(employee: Employee): any {
+  private toEmployeeListDto(employee: Employee): Record<string, unknown> {
     return {
-      id: (employee as any)._id,
+      id: this.extractId(
+        employee as unknown as { _id: string | { toString(): string } }
+      ),
       name: employee.name,
       document: employee.document,
       hiredAt: employee.hiredAt,
       isActive: employee.isActive,
       createdAt: employee.createdAt,
       updatedAt: employee.updatedAt,
-      deletedAt: employee.deletedAt
+      deletedAt: employee.deletedAt,
     };
   }
 
   /**
    * Lista colaboradores convertidos para DTO
    */
-  async listAsDto(filter: any = {}, opts: { page?: number; limit?: number } = {}): Promise<{ items: any[]; total: number }> {
+  async listAsDto(
+    filter: ListFilter = {},
+    opts: PaginationOptions = {}
+  ): Promise<EmployeeListResponse> {
     const result = await this.list(filter, opts);
     return {
-      items: result.items.map(emp => this.toEmployeeListDto(emp)),
-      total: result.total
+      items: result.items.map((emp) => this.toEmployeeListDto(emp)),
+      total: result.total,
     };
   }
 
   /**
    * Converte vínculos para RequiredDocumentLinkDto
    */
-  private toRequiredDocumentLinkDto(link: any): any {
+  private toRequiredDocumentLinkDto(link: {
+    documentTypeId: unknown;
+    active: boolean;
+    createdAt: Date | undefined;
+    updatedAt: Date | undefined;
+    deletedAt?: Date | undefined;
+  }): RequiredDocumentResponse {
     // Trata casos onde documentTypeId pode ser string ou objeto populado
-    const documentType = typeof link.documentTypeId === 'string' 
-      ? { id: link.documentTypeId, name: 'Tipo de documento', description: null }
-      : {
-          id: link.documentTypeId._id || link.documentTypeId.id || link.documentTypeId,
-          name: link.documentTypeId.name || 'Nome não encontrado',
-          description: link.documentTypeId.description || null
-        };
+    const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+    const documentType = {
+      id: this.extractId(docType),
+      name: docType.name || "Nome não encontrado",
+      description: docType.description || null,
+    };
 
     return {
       documentType,
       active: link.active,
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
-      deletedAt: link.deletedAt
+      deletedAt: link.deletedAt,
     };
   }
 
   /**
    * Lista vínculos convertidos para DTO
    */
-  async getRequiredDocumentsAsDto(employeeId: string, status: string = "all"): Promise<any[]> {
-    const statusFilter = status as 'active' | 'inactive' | 'all';
+  async getRequiredDocumentsAsDto(
+    employeeId: string,
+    status: string = "all"
+  ): Promise<RequiredDocumentResponse[]> {
+    const statusFilter = status as "active" | "inactive" | "all";
     const links = await this.linkRepo.findByEmployee(employeeId, statusFilter);
-    
-    return links.map(link => {
+
+    return links.map((link) => {
       // O documentTypeId vem populado como objeto completo
-      const docType = link.documentTypeId as any;
-      
+      const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+
       return {
         documentType: {
-          id: docType._id?.toString() || docType.toString(),
-          name: docType.name || 'Nome não encontrado',
-          description: docType.description || null
+          id: this.extractId(docType),
+          name: docType.name || "Nome não encontrado",
+          description: docType.description || null,
         },
         active: link.active,
         createdAt: link.createdAt,
         updatedAt: link.updatedAt,
-        deletedAt: link.deletedAt
+        deletedAt: link.deletedAt,
       };
     });
   }
 
   /**
    * Envia um documento do colaborador
-   * 
+   *
    * Funcionalidades:
    * - Valida se colaborador e tipo de documento existem
    * - Verifica se há vínculo ativo entre colaborador e tipo
    * - Cria ou atualiza documento existente
    * - Marca documento como SENT
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @param documentTypeId - ID do tipo de documento
    * @param value - Valor textual do documento
    * @returns Promise<Document> - Documento criado/atualizado
    */
-  async sendDocument(employeeId: string, documentTypeId: string, value: string): Promise<any> {
+  async sendDocument(
+    employeeId: string,
+    documentTypeId: string,
+    value: string
+  ): Promise<import("../models/Document").Document | null> {
     // Valida formato dos ObjectIds
-    ValidationUtils.validateObjectId(employeeId, 'ID do colaborador');
-    ValidationUtils.validateObjectId(documentTypeId, 'ID do tipo de documento');
+    ValidationUtils.validateObjectId(employeeId, "ID do colaborador");
+    ValidationUtils.validateObjectId(documentTypeId, "ID do tipo de documento");
 
     // Limpa formatação do valor do documento (remove pontos, hífens, etc.)
     const cleanValue = ValidationUtils.cleanDocumentValue(value);
@@ -716,29 +859,36 @@ export class EmployeeService {
     }
 
     // Verifica se há vínculo ativo entre colaborador e tipo de documento
-    const links = await this.linkRepo.findByEmployee(employeeId, 'active');
-    const hasActiveLink = links.some(link => 
-      (link.documentTypeId as any)._id?.toString() === documentTypeId
-    );
+    const links = await this.linkRepo.findByEmployee(employeeId, "active");
+    const hasActiveLink = links.some((link) => {
+      const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+      return this.extractId(docType) === documentTypeId;
+    });
 
     if (!hasActiveLink) {
-      throw new ValidationError("Tipo de documento não está vinculado ao colaborador");
+      throw new ValidationError(
+        "Tipo de documento não está vinculado ao colaborador"
+      );
     }
 
     // Verifica se já existe documento para este tipo e colaborador
     const existingDocs = await this.documentRepo.find({
       employeeId,
       documentTypeId,
-      isActive: true
+      isActive: true,
     });
 
     if (existingDocs.length > 0) {
       // Atualiza documento existente
-      const existingDoc = existingDocs[0];
-      return await this.documentRepo.update((existingDoc as any)._id, {
+      const existingDoc = existingDocs[0] as DocumentWithId;
+      const docId =
+        typeof existingDoc._id === "string"
+          ? existingDoc._id
+          : existingDoc._id.toString();
+      return await this.documentRepo.update(docId, {
         value: cleanValue,
         status: DocumentStatus.SENT,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     } else {
       // Cria novo documento
@@ -747,7 +897,7 @@ export class EmployeeService {
         status: DocumentStatus.SENT,
         employeeId,
         documentTypeId,
-        isActive: true
+        isActive: true,
       });
     }
   }
@@ -755,24 +905,31 @@ export class EmployeeService {
   /**
    * Enriquece dados de colaboradores com informações de documentação
    * Usado para padronizar resposta em endpoints de busca/listagem
-   * 
+   *
    * @param employees - Lista de colaboradores
    * @returns Colaboradores com informações de documentação
    */
-  async enrichEmployeesWithDocumentationInfo(employees: Employee[]): Promise<any[]> {
+  async enrichEmployeesWithDocumentationInfo(
+    employees: Employee[]
+  ): Promise<EnrichedEmployee[]> {
     const enrichedEmployees = [];
 
     for (const employee of employees) {
-      const employeeId = (employee as any)._id.toString();
-      
+      const employeeId = this.extractId(
+        employee as unknown as { _id: string | { toString(): string } }
+      );
+
       // Busca vínculos ativos (documentos obrigatórios)
-      const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
-      
+      const activeLinks = await this.linkRepo.findByEmployee(
+        employeeId,
+        "active"
+      );
+
       // Busca documentos enviados
       const sentDocuments = await this.documentRepo.find({
         employeeId,
         status: DocumentStatus.SENT,
-        isActive: true
+        isActive: true,
       });
 
       // Calcula estatísticas de documentação
@@ -781,7 +938,9 @@ export class EmployeeService {
       const pendingCount = Math.max(0, requiredCount - sentCount);
 
       enrichedEmployees.push({
-        id: (employee as any)._id,
+        id: this.extractId(
+          employee as unknown as { _id: string | { toString(): string } }
+        ),
         name: employee.name,
         document: employee.document,
         hiredAt: employee.hiredAt,
@@ -794,8 +953,8 @@ export class EmployeeService {
           sent: sentCount,
           pending: pendingCount,
           hasRequiredDocuments: requiredCount > 0,
-          isComplete: pendingCount === 0 && requiredCount > 0
-        }
+          isComplete: pendingCount === 0 && requiredCount > 0,
+        },
       });
     }
 
@@ -808,13 +967,13 @@ export class EmployeeService {
 
   /**
    * Busca apenas documentos ENVIADOS de um colaborador
-   * 
+   *
    * SOLID: Single Responsibility - apenas documentos com status SENT
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @returns Promise<DocumentDetailDto[]> - Lista de documentos enviados
    */
-  async getSentDocuments(employeeId: string): Promise<any[]> {
+  async getSentDocuments(employeeId: string): Promise<SentDocumentResponse[]> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -825,26 +984,36 @@ export class EmployeeService {
     const sentDocuments = await this.documentRepo.find({
       employeeId,
       status: DocumentStatus.SENT,
-      isActive: true
+      isActive: true,
     });
 
     // Mapeia para DTO com informações do tipo
     const result = [];
     for (const doc of sentDocuments) {
-      const documentType = await this.documentTypeRepo.findById(doc.documentTypeId.toString());
-      
+      const documentType = await this.documentTypeRepo.findById(
+        doc.documentTypeId.toString()
+      );
+
       result.push({
-        id: (doc as any)._id,
+        id: this.extractId(
+          doc as unknown as { _id: string | { toString(): string } }
+        ),
         documentType: {
-          id: (documentType as any)?._id || doc.documentTypeId,
-          name: documentType?.name || 'Tipo não encontrado',
-          description: documentType?.description || null
+          id: documentType
+            ? this.extractId(
+                documentType as unknown as {
+                  _id: string | { toString(): string };
+                }
+              )
+            : doc.documentTypeId,
+          name: documentType?.name || "Tipo não encontrado",
+          description: documentType?.description || null,
         },
         status: doc.status,
         value: doc.value, // Valor já limpo
-        active: doc.isActive,
+        isActive: doc.isActive,
         createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt
+        updatedAt: doc.updatedAt,
       });
     }
 
@@ -853,13 +1022,15 @@ export class EmployeeService {
 
   /**
    * Busca apenas documentos PENDENTES de um colaborador
-   * 
+   *
    * SOLID: Single Responsibility - apenas tipos obrigatórios sem documento enviado
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @returns Promise<DocumentTypeDto[]> - Lista de tipos pendentes
    */
-  async getPendingDocuments(employeeId: string): Promise<any[]> {
+  async getPendingDocuments(
+    employeeId: string
+  ): Promise<PendingDocumentResponse[]> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -867,7 +1038,10 @@ export class EmployeeService {
     }
 
     // Busca vínculos ativos
-    const activeLinks = await this.linkRepo.findByEmployee(employeeId, 'active');
+    const activeLinks = await this.linkRepo.findByEmployee(
+      employeeId,
+      "active"
+    );
     if (!activeLinks.length) {
       return []; // Sem documentos obrigatórios
     }
@@ -876,32 +1050,33 @@ export class EmployeeService {
     const sentDocuments = await this.documentRepo.find({
       employeeId,
       status: DocumentStatus.SENT,
-      isActive: true
+      isActive: true,
     });
 
     // Mapeia IDs dos tipos já enviados
     const sentTypeIds = new Set(
-      sentDocuments.map(doc => doc.documentTypeId.toString())
+      sentDocuments.map((doc) => doc.documentTypeId.toString())
     );
 
     // Identifica tipos pendentes (obrigatórios mas não enviados)
     const pendingTypes = [];
     for (const link of activeLinks) {
-      const typeId = (link.documentTypeId as any)._id?.toString() || link.documentTypeId.toString();
-      
+      const docType = link.documentTypeId as unknown as DocumentTypeDocument;
+      const typeId = this.extractId(docType);
+
       if (!sentTypeIds.has(typeId)) {
         const documentType = await this.documentTypeRepo.findById(typeId);
-        
+
         pendingTypes.push({
           documentType: {
             id: typeId,
-            name: documentType?.name || 'Tipo não encontrado',
-            description: documentType?.description || null
+            name: documentType?.name || "Tipo não encontrado",
+            description: documentType?.description || null,
           },
-          status: 'PENDING',
+          status: "PENDING",
           value: null,
-          active: link.active,
-          requiredSince: link.createdAt
+          isActive: link.active,
+          requiredSince: link.createdAt,
         });
       }
     }
@@ -911,13 +1086,15 @@ export class EmployeeService {
 
   /**
    * Overview completo da documentação de um colaborador
-   * 
+   *
    * SOLID: Single Responsibility - combina enviados + pendentes para visão geral
-   * 
+   *
    * @param employeeId - ID do colaborador
    * @returns Promise<OverviewDto> - Overview completo
    */
-  async getDocumentationOverview(employeeId: string): Promise<any> {
+  async getDocumentationOverview(
+    employeeId: string
+  ): Promise<DocumentOverviewResponse> {
     // Valida colaborador
     const employee = await this.employeeRepo.findById(employeeId);
     if (!employee) {
@@ -929,17 +1106,14 @@ export class EmployeeService {
     const pendingDocuments = await this.getPendingDocuments(employeeId);
 
     // Combina em um overview estruturado
-    const allDocuments = [
-      ...sentDocuments,
-      ...pendingDocuments
-    ];
+    const allDocuments = [...sentDocuments, ...pendingDocuments];
 
     return {
       total: allDocuments.length,
       sent: sentDocuments.length,
       pending: pendingDocuments.length,
       documents: allDocuments,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 }
