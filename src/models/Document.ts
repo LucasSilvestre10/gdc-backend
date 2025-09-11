@@ -1,19 +1,17 @@
 import { Property, Required, Default } from "@tsed/schema";
-import { Model, ObjectID } from "@tsed/mongoose";
-import { Employee } from "./Employee";
-import { DocumentType } from "./DocumentType";
+import { Model } from "@tsed/mongoose";
 
 export enum DocumentStatus {
   PENDING = "PENDING",
-  SENT = "SENT"
+  SENT = "SENT",
 }
 
 /**
  * Modelo Document simplificado para MVP
- * 
+ *
  * Representa apenas o valor textual do documento (string)
  * Exemplos: CPF "123.456.789-01", RG "12.345.678-9", CNH "123456789"
- * 
+ *
  * Não há arquivos físicos - apenas representação textual
  */
 @Model({

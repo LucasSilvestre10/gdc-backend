@@ -2,11 +2,15 @@ import { Property, Required, Enum } from "@tsed/schema";
 
 export enum DocumentStatus {
   PENDING = "PENDING",
-  SENT = "SENT"
+  SENT = "SENT",
 }
 
 // DTO simplificado para MVP - apenas representação textual
 export class SendDocumentDto {
+  @Required()
+  @Property()
+  employeeId!: string; // ID do colaborador
+
   @Required()
   @Property()
   documentTypeId!: string;
@@ -30,10 +34,25 @@ export class UpdateDocumentDto {
   status?: DocumentStatus;
 }
 
+// DTO para filtros de consulta de documentos pendentes
+export class ListPendingDocumentsDto {
+  @Property()
+  page?: number = 1;
+
+  @Property()
+  limit?: number = 10;
+
+  @Property()
+  employeeId?: string;
+
+  @Property()
+  documentTypeId?: string;
+}
+
 // DTO para filtros de consulta de documentos
 export class DocumentFilterDto {
   @Property()
-  status?: 'active' | 'inactive' | 'all' = 'all';
+  status?: "active" | "inactive" | "all" = "all";
 
   @Property()
   page?: number = 1;
