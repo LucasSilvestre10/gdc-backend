@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "test": "vitest",
-    "test:coverage": "vitest --coverage",
+    "coverage": "vitest --coverage",
     "build": "npm run barrels && swc src --out-dir dist -s  --strip-leading-paths",
     "barrels": "barrels",
     "start": "npm run barrels && nodemon src/index.ts",
