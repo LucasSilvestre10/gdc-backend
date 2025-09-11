@@ -6,17 +6,25 @@ import { Inject } from "@tsed/di";
 import { DocumentService } from "../../services/DocumentService";
 
 /**
- * Controller responsável por operações globais de documentos.
- * 
- * Foco principal: GET /documents/pending
- * Lista todos os documentos pendentes de todos os colaboradores
- * com filtros opcionais e paginação.
- * 
- * Funcionalidades:
- * - Listagem global de documentos pendentes
- * - Filtros por colaborador e tipo de documento
- * - Paginação completa
- * - Suporte a filtros de status (active/inactive/all)
+ * Controller MVP responsável por operações administrativas globais de documentos.
+ *
+ * Funcionalidades principais:
+ * - GET /documents/pending - Lista documentos pendentes de todos os colaboradores
+ *
+ * Características:
+ * - Dashboard administrativo para visualizar pendências globais
+ * - Filtros por tipo de documento (documentTypeId)
+ * - Paginação para performance
+ * - Suporte a diferentes status (active/inactive/all)
+ *
+ * Nota: Para documentos pendentes de colaborador específico, 
+ * use GET /employees/:id/documents/pending
+ *
+ * Segue princípios SOLID:
+ * - Single Responsibility: Apenas dashboard de pendências globais
+ * - Open/Closed: Extensível para novos filtros
+ * - Interface Segregation: DTO específico para cada operação
+ * - Dependency Inversion: Depende de abstrações (Service)
  */
 @Controller("/documents")
 export class DocumentsController {
@@ -24,24 +32,38 @@ export class DocumentsController {
   private documentService!: DocumentService;
 
   /**
-   * @endpoint GET /documents/pending
-   * @description Lista todos os documentos pendentes de todos os colaboradores.
+   * Lista todos os documentos pendentes de todos os colaboradores.
+   * Endpoint administrativo para acompanhamento global de pendências.
+   *
+   * @route GET /documents/pending
    * @query status - Filtro de status (active|inactive|all) - default: all
    * @query page - Número da página (default: 1)
-   * @query limit - Items por página (default: 10)
-   * @query employeeId - Filtro opcional por colaborador
-   * @query documentTypeId - Filtro opcional por tipo de documento
-   * @returns { success, data, pagination }
+   * @query limit - Items por página (default: 10, max: 100)
+   * @query documentTypeId - Filtro opcional por tipo de documento específico
+   * @returns Lista paginada de documentos pendentes globalmente
+   *
+   * @example
+   * GET /documents/pending?page=1&limit=20
+   * GET /documents/pending?documentTypeId=456&status=active
+   *
+   * @note Para documentos pendentes de um colaborador específico, use:
+   * GET /employees/:id/documents/pending
    */
   @Get("/pending")
   @Summary("Listar documentos pendentes globalmente")
-  @Description("Lista todos os documentos pendentes de todos os colaboradores com filtros opcionais e paginação")
+  @Description(
+    "Lista todos os documentos pendentes de todos os colaboradores. " +
+      "Inclui filtros opcionais por tipo de documento e status. " +
+      "Suporte a paginação para melhor performance. " +
+      "Retorna apenas documentos que estão realmente pendentes de envio. " +
+      "Para colaborador específico, use GET /employees/:id/documents/pending"
+  )
   @Returns(200, Object)
+  @Returns(400, Object)
   async getPendingDocuments(
     @QueryParams("status") status: string = "all",
     @QueryParams("page") page: number = 1,
     @QueryParams("limit") limit: number = 10,
-    @QueryParams("employeeId") employeeId?: string,
     @QueryParams("documentTypeId") documentTypeId?: string
   ) {
     try {
@@ -49,16 +71,16 @@ export class DocumentsController {
         status,
         page,
         limit,
-        employeeId,
-        documentTypeId
+        documentTypeId,
       });
 
       return {
         success: true,
         data: result.data,
-        pagination: result.pagination
+        pagination: result.pagination,
       };
     } catch (error) {
+      console.error("Erro ao listar documentos pendentes:", error);
       throw error;
     }
   }
@@ -144,14 +166,14 @@ export class DocumentsController {
 
 //   /**
 //    * Lista documentos pendentes usando lógica de negócio avançada (Dia 5)
-//    * 
+//    *
 //    * Funcionalidades:
 //    * - Identifica tipos de documento obrigatórios ainda não enviados
 //    * - Cruza dados entre colaboradores, tipos obrigatórios e documentos enviados
 //    * - Filtros opcionais por colaborador e tipo de documento
 //    * - Paginação completa com metadados
 //    * - Retorna "documentos virtuais" representando pendências
-//    * 
+//    *
 //    * @route GET /documents/pending
 //    * @query employeeId - Filtro por colaborador específico
 //    * @query documentTypeId - Filtro por tipo de documento específico
