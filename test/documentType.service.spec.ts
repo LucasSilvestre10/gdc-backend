@@ -1,6 +1,14 @@
 import { describe, it, beforeEach, expect, vi } from "vitest";
 import { DocumentTypeService } from "../src/services/DocumentTypeService";
 import { BadRequest } from "@tsed/exceptions";
+import { ValidationError } from "../src/exceptions";
+
+// Helper para gerar ObjectIds válidos para testes
+const generateValidObjectId = () => {
+    return Math.random().toString(16).substring(2, 10).padStart(8, '0') + 
+           Math.random().toString(16).substring(2, 10).padStart(8, '0') + 
+           Math.random().toString(16).substring(2, 10).padStart(8, '0');
+};
 
 /**
  * Suite de testes para DocumentTypeService
@@ -14,6 +22,7 @@ import { BadRequest } from "@tsed/exceptions";
 describe("DocumentTypeService", () => {
     let service: DocumentTypeService;
     let repo: any;
+    let employeeRepo: any;
 
     beforeEach(() => {
         // Prepara mocks para o repository. Os testes irão controlar os retornos
@@ -29,7 +38,11 @@ describe("DocumentTypeService", () => {
             restore: vi.fn(),
         };
 
-        service = new DocumentTypeService(repo);
+        employeeRepo = {
+            findByDocumentType: vi.fn(),
+        };
+
+        service = new DocumentTypeService(repo, employeeRepo);
     });
 
     describe("create", () => {
@@ -126,12 +139,13 @@ describe("DocumentTypeService", () => {
             //
             // O que é esperado:
             // - service deve delegar a chamada ao repo e retornar o mesmo item
-            const item = { _id: "1", name: "CPF" };
+            const validId = generateValidObjectId();
+            const item = { _id: validId, name: "CPF" };
             repo.findById.mockResolvedValue(item);
 
-            const result = await service.findById("1");
+            const result = await service.findById(validId);
 
-            expect(repo.findById).toHaveBeenCalledWith("1");
+            expect(repo.findById).toHaveBeenCalledWith(validId);
             expect(result).toEqual(item);
         });
 
@@ -153,8 +167,10 @@ describe("DocumentTypeService", () => {
             //
             // O que é esperado:
             // - service deve delegar a chamada ao repo e retornar os items
-            const ids = ["1", "2"];
-            const items = [{ _id: "1", name: "A" }, { _id: "2", name: "B" }];
+            const validId1 = generateValidObjectId();
+            const validId2 = generateValidObjectId();
+            const ids = [validId1, validId2];
+            const items = [{ _id: validId1, name: "A" }, { _id: validId2, name: "B" }];
             repo.findByIds.mockResolvedValue(items);
 
             const result = await service.findByIds(ids);
@@ -167,7 +183,7 @@ describe("DocumentTypeService", () => {
     describe("update", () => {
         it("deve atualizar tipo de documento com sucesso", async () => {
             // Arrange: dados de entrada e retornos esperados
-            const id = "123";
+            const id = generateValidObjectId();
             const dto = { name: "CPF Atualizado", description: "Nova descrição" };
             const existingType = { _id: id, name: "CPF", description: "Descrição antiga" };
             const updatedType = { _id: id, name: "CPF Atualizado", description: "Nova descrição" };
@@ -191,7 +207,7 @@ describe("DocumentTypeService", () => {
 
         it("deve retornar null se tipo de documento não existir", async () => {
             // Arrange: simula tipo não encontrado
-            const id = "inexistente";
+            const id = generateValidObjectId();
             const dto = { name: "CPF" };
             
             repo.findById.mockResolvedValue(null);
@@ -208,17 +224,17 @@ describe("DocumentTypeService", () => {
         it("deve lançar erro se ID for inválido", async () => {
             // Act & Assert: espera erro para ID inválido
             await expect(service.update("", { name: "CPF" }))
-                .rejects.toThrow(BadRequest);
+                .rejects.toThrow(ValidationError);
             await expect(service.update("   ", { name: "CPF" }))
-                .rejects.toThrow("ID is required");
+                .rejects.toThrow(ValidationError);
         });
 
         it("deve lançar erro se nome já existir em outro registro", async () => {
             // Arrange: simula nome duplicado
-            const id = "123";
+            const id = generateValidObjectId();
             const dto = { name: "RG" };
             const existingType = { _id: id, name: "CPF" };
-            const duplicateType = { _id: "456", name: "RG" };
+            const duplicateType = { _id: generateValidObjectId(), name: "RG" };
             
             repo.findById.mockResolvedValue(existingType);
             repo.findByName.mockResolvedValue(duplicateType);
@@ -230,7 +246,7 @@ describe("DocumentTypeService", () => {
 
         it("deve permitir atualizar mesmo nome do registro atual", async () => {
             // Arrange: simula atualização do mesmo nome
-            const id = "123";
+            const id = generateValidObjectId();
             const dto = { name: "CPF", description: "Nova descrição" };
             const existingType = { _id: id, name: "CPF", description: "Antiga" };
             const sameNameType = { _id: id, name: "CPF" }; // Mesmo ID
@@ -249,7 +265,7 @@ describe("DocumentTypeService", () => {
 
         it("deve retornar tipo existente se não houver dados para atualizar", async () => {
             // Arrange: DTO vazio
-            const id = "123";
+            const id = generateValidObjectId();
             const dto = {};
             const existingType = { _id: id, name: "CPF" };
             
@@ -267,7 +283,7 @@ describe("DocumentTypeService", () => {
     describe("delete", () => {
         it("deve fazer soft delete de tipo de documento com sucesso", async () => {
             // Arrange: dados de entrada e retorno esperado
-            const id = "123";
+            const id = generateValidObjectId();
             const existingType = { _id: id, name: "CPF", isActive: true };
             const deletedType = { _id: id, name: "CPF", isActive: false, deletedAt: new Date() };
             
@@ -285,7 +301,7 @@ describe("DocumentTypeService", () => {
 
         it("deve retornar null se tipo de documento não existir", async () => {
             // Arrange: simula tipo não encontrado
-            const id = "inexistente";
+            const id = generateValidObjectId();
             
             repo.findById.mockResolvedValue(null);
             
@@ -301,16 +317,16 @@ describe("DocumentTypeService", () => {
         it("deve lançar erro se ID for inválido", async () => {
             // Act & Assert: espera erro para ID inválido
             await expect(service.delete(""))
-                .rejects.toThrow(BadRequest);
+                .rejects.toThrow(ValidationError);
             await expect(service.delete("   "))
-                .rejects.toThrow("ID is required");
+                .rejects.toThrow(ValidationError);
         });
     });
 
     describe("restore", () => {
         it("deve restaurar tipo de documento com sucesso", async () => {
             // Arrange: dados de entrada e retorno esperado
-            const id = "123";
+            const id = generateValidObjectId();
             const restoredType = { _id: id, name: "CPF", isActive: true, deletedAt: null };
             
             repo.restore.mockResolvedValue(restoredType);
@@ -325,7 +341,7 @@ describe("DocumentTypeService", () => {
 
         it("deve retornar null se tipo de documento não existir", async () => {
             // Arrange: simula tipo não encontrado
-            const id = "inexistente";
+            const id = generateValidObjectId();
             
             repo.restore.mockResolvedValue(null);
             
@@ -340,9 +356,55 @@ describe("DocumentTypeService", () => {
         it("deve lançar erro se ID for inválido", async () => {
             // Act & Assert: espera erro para ID inválido
             await expect(service.restore(""))
-                .rejects.toThrow(BadRequest);
+                .rejects.toThrow(ValidationError);
             await expect(service.restore("   "))
-                .rejects.toThrow("ID is required");
+                .rejects.toThrow(ValidationError);
+        });
+    });
+
+    describe("getLinkedEmployees", () => {
+        it("deve retornar colaboradores vinculados ao tipo de documento", async () => {
+            // Arrange: dados de entrada e retorno esperado
+            const documentTypeId = generateValidObjectId();
+            const documentType = { _id: documentTypeId, name: "CPF" };
+            const linkedEmployees = {
+                items: [
+                    { _id: generateValidObjectId(), name: "João Silva", requiredDocumentTypes: [documentTypeId] }
+                ],
+                total: 1
+            };
+            
+            repo.findById.mockResolvedValue(documentType);
+            employeeRepo.findByDocumentType.mockResolvedValue(linkedEmployees);
+            
+            // Act: chama o método do service
+            const result = await service.getLinkedEmployees(documentTypeId);
+            
+            // Assert: verifica se foi chamado corretamente
+            expect(repo.findById).toHaveBeenCalledWith(documentTypeId);
+            expect(employeeRepo.findByDocumentType).toHaveBeenCalledWith(documentTypeId, { page: 1, limit: 10 });
+            expect(result).toEqual(linkedEmployees);
+        });
+
+        it("deve retornar array vazio se tipo de documento não existir", async () => {
+            // Arrange: simula tipo não encontrado
+            const documentTypeId = generateValidObjectId();
+            
+            repo.findById.mockResolvedValue(null);
+            
+            // Act: chama o método do service
+            const result = await service.getLinkedEmployees(documentTypeId);
+            
+            // Assert: verifica o resultado
+            expect(repo.findById).toHaveBeenCalledWith(documentTypeId);
+            expect(employeeRepo.findByDocumentType).not.toHaveBeenCalled();
+            expect(result).toEqual({ items: [], total: 0 });
+        });
+
+        it("deve lançar erro se ID for inválido", async () => {
+            // Act & Assert: espera erro para ID inválido
+            await expect(service.getLinkedEmployees(""))
+                .rejects.toThrow(ValidationError);
         });
     });
 });

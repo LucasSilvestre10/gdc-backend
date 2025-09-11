@@ -25,7 +25,8 @@ describe('DocumentTypesController', () => {
             findByIds: vi.fn(),
             update: vi.fn(),
             delete: vi.fn(),
-            restore: vi.fn()
+            restore: vi.fn(),
+            getLinkedEmployees: vi.fn()
         };
         
         // Criar o controller passando o mock do service como argumento
@@ -244,17 +245,35 @@ describe('DocumentTypesController', () => {
         it('should return empty array for existing document type', async () => {
             const id = '507f1f77bcf86cd799439011';
             
+            // Mock findById retornando documento válido
             (mockDocumentTypeService.findById as any).mockResolvedValue(mockDocumentType);
+            
+            // Mock getLinkedEmployees retornando array vazio
+            (mockDocumentTypeService.getLinkedEmployees as any).mockResolvedValue({
+                items: [],
+                total: 0,
+                totalPages: 0
+            });
 
             const result = await controller.getLinkedEmployees(id);
 
-            // Espera que o método findById do service seja chamado com o id
+            // Espera que o método findById seja chamado primeiro
             expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-            // Espera que o retorno seja sucesso e array vazio
+            // Espera que o método getLinkedEmployees do service seja chamado com o id
+            expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(id, { page: 1, limit: 10 });
+            // Espera que o retorno seja sucesso com dados paginados
             expect(result).toEqual({
                 success: true,
-                message: 'Método será implementado no próximo commit',
-                data: [],
+                message: 'Colaboradores vinculados ao tipo de documento listados com sucesso',
+                data: {
+                    items: [],
+                    pagination: {
+                        page: 1,
+                        limit: 10,
+                        total: 0,
+                        totalPages: 0
+                    }
+                },
                 timestamp: expect.any(String)
             });
         });
@@ -263,11 +282,14 @@ describe('DocumentTypesController', () => {
         it('should throw NotFound for non-existing document type', async () => {
             const id = '507f1f77bcf86cd799439011';
             
+            // Mock findById retornando null (documento não encontrado)
             (mockDocumentTypeService.findById as any).mockResolvedValue(null);
 
             await expect(controller.getLinkedEmployees(id)).rejects.toThrow('Tipo de documento não encontrado');
-            // Espera que o método findById do service seja chamado com o id
+            // Espera que o método findById seja chamado
             expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+            // getLinkedEmployees não deve ser chamado quando documento não existe
+            expect(mockDocumentTypeService.getLinkedEmployees).not.toHaveBeenCalled();
         });
 
         // Deve tratar erro ao buscar funcionários vinculados
@@ -275,11 +297,16 @@ describe('DocumentTypesController', () => {
             const id = '507f1f77bcf86cd799439011';
             const error = new Error('Database error');
             
-            (mockDocumentTypeService.findById as any).mockRejectedValue(error);
+            // Mock findById retornando documento válido
+            (mockDocumentTypeService.findById as any).mockResolvedValue(mockDocumentType);
+            // Mock getLinkedEmployees lançando erro
+            (mockDocumentTypeService.getLinkedEmployees as any).mockRejectedValue(error);
 
-            // Espera que o erro seja lançado
-      await expect(controller.getLinkedEmployees(id)).rejects.toThrow(error);
-    });
+            // Espera que o erro seja propagado
+            await expect(controller.getLinkedEmployees(id)).rejects.toThrow(error);
+            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+            expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(id, { page: 1, limit: 10 });
+        });
   });
 
   describe('delete', () => {
