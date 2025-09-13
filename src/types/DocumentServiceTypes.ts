@@ -5,33 +5,6 @@ import { DocumentStatus } from "../models/Document";
  * Separados dos DTOs para manter a arquitetura limpa
  */
 
-export interface CreateSimpleDocumentParams {
-  employeeId: string;
-  documentTypeId: string;
-  value: string;
-  status?: DocumentStatus;
-}
-
-export interface CreateDocumentParams {
-  employeeId: string;
-  documentTypeId: string;
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-  mimeType: string;
-}
-
-export interface UpdateDocumentParams {
-  value?: string;
-  status?: DocumentStatus;
-}
-
-export interface DocumentFilter {
-  employeeId?: string;
-  documentTypeId?: string;
-  isActive?: boolean;
-}
-
 export interface ListOptions {
   page?: number;
   limit?: number;
@@ -48,29 +21,6 @@ export interface GetPendingDocumentsParams {
   page?: number;
   limit?: number;
   documentTypeId?: string;
-}
-
-export interface PendingDocumentItem {
-  employee: {
-    id: string;
-    name: string;
-  };
-  documentType: {
-    id: string;
-    name: string;
-  };
-  status: string;
-  active: boolean;
-}
-
-export interface PendingDocumentsResult {
-  data: PendingDocumentItem[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
 }
 
 // Tipos para resposta organizada por colaborador

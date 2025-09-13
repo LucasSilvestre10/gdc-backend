@@ -12,11 +12,37 @@ export interface MongoDocument {
   _id: string | { toString(): string };
 }
 
-// Tipo para required document types
-export interface RequiredDocumentType {
-  documentTypeId: string | { toString(): string };
-  active?: boolean;
-  deletedAt?: Date | null;
+// Filtros para listagem de colaboradores
+export interface ListFilter {
+  status?: "active" | "inactive" | "all";
+  name?: string;
+  document?: string;
+}
+
+// Opções de paginação
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+}
+
+// Resultado paginado genérico
+export interface PaginationResult<T> {
+  items: T[];
+  total: number;
+}
+
+// Filtros para busca
+export interface SearchFilters {
+  status?: "active" | "inactive" | "all";
+  page?: number;
+  limit?: number;
+}
+
+// Tipo para DocumentType com _id para população
+export interface DocumentTypeDocument extends DocumentType {
+  _id: string | { toString(): string };
+  name: string;
+  description?: string;
 }
 
 // Tipo para documentos com _id
@@ -44,43 +70,14 @@ export interface RequiredDocumentResponse {
   deletedAt?: Date | undefined;
 }
 
-export interface DocumentResponse {
-  id: string;
-  value: string;
-  status: string;
-  documentType: {
-    id: string;
-    name: string;
-    description: string | null;
-  };
-  employee?: {
-    id: string;
-    name: string;
-  };
-  isActive: boolean; // Corrigido para match com o código
-  createdAt: Date | undefined;
-  updatedAt: Date | undefined;
-  deletedAt?: Date | undefined;
-}
-
-export interface DocumentFilter {
-  employeeId: string;
-  status?: string;
-  isActive?: boolean;
-  documentTypeId?: string | { $in: string[] };
-}
-
-export interface EmployeeDocumentsResult {
-  documents: DocumentResponse[];
-  hasRequiredDocuments: boolean;
-  message?: string;
-}
-
 // Interface para resumo da documentação de um colaborador
 export interface DocumentationSummary {
-  total: number;
+  required: number;
   sent: number;
   pending: number;
+  total: number;
+  hasRequiredDocuments: boolean;
+  isComplete: boolean;
   completionPercentage: number;
   lastUpdated?: Date;
 }
@@ -99,7 +96,7 @@ export interface EnrichedEmployee {
 
 // Interface para lista DTO
 export interface EmployeeListResponse {
-  items: Record<string, unknown>[];
+  items: EmployeeDto[];
   total: number;
 }
 
@@ -110,17 +107,6 @@ export interface DocumentOverviewResponse {
   pending: number;
   documents: (SentDocumentResponse | PendingDocumentResponse)[];
   lastUpdated: string;
-}
-
-// Para método sendDocument (retorna Document do repositório)
-export interface SendDocumentResult extends MongoDocument {
-  value: string;
-  status: string;
-  employeeId: string;
-  documentTypeId: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 // Interface para documentos enviados
@@ -154,8 +140,20 @@ export interface PendingDocumentResponse {
   requiredSince: Date | undefined;
 }
 
-// Interface para status de documentação
-export interface DocumentationStatusResult {
-  sent: Array<DocumentType & { documentValue?: string | null }>;
-  pending: DocumentType[];
+// Interface para conversão de Employee para DTO
+export interface EmployeeDto {
+  id: string;
+  name: string;
+  document: string;
+  hiredAt: Date;
+  isActive: boolean;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt?: Date | undefined;
+}
+
+// Interface para resultado de busca de colaboradores
+export interface EmployeeSearchResult {
+  items: Employee[];
+  total: number;
 }
