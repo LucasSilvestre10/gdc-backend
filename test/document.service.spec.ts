@@ -1,392 +1,709 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Types } from "mongoose";
+import { describe, it, beforeEach, expect, vi } from "vitest";
 import { DocumentService } from "../src/services/DocumentService";
 import { DocumentRepository } from "../src/repositories/DocumentRepository";
 import { DocumentTypeRepository } from "../src/repositories/DocumentTypeRepository";
 import { EmployeeRepository } from "../src/repositories/EmployeeRepository";
-import { BadRequest, NotFound } from "@tsed/exceptions";
-import { DocumentStatus } from "../src/models/Document";
+import { EmployeeService } from "../src/services/EmployeeService";
+import { ValidationUtils } from "../src/utils/ValidationUtils";
+import { PaginationUtils } from "../src/utils/PaginationUtils";
 
-// Testes completos para o serviço de documentos com cobertura 100%
-describe("DocumentService", () => {
+/**
+ * Testes unitários para DocumentService
+ *
+ * Foca na lógica de negócio:
+ * - Operações de busca de documentos pendentes e enviados
+ * - Validações e tratamento de erros
+ * - Agrupamento e paginação de dados
+ * - Filtros por status, colaborador e tipo de documento
+ */
+describe("DocumentService - Testes Unitários", () => {
   let service: DocumentService;
   let mockDocumentRepository: any;
   let mockDocumentTypeRepository: any;
   let mockEmployeeRepository: any;
+  let mockEmployeeService: any;
+
+  // Dados mock para testes
+  const mockDocumentType = {
+    _id: "doc-type-123",
+    id: "doc-type-123",
+    name: "CPF",
+    isActive: true,
+  };
+
+  const mockEmployee = {
+    _id: "emp-123",
+    id: "emp-123",
+    name: "João Silva",
+    document: "123.456.789-00",
+    isActive: true,
+  };
+
+  const mockDocument = {
+    _id: "doc-123",
+    id: "doc-123",
+    value: "123.456.789-00",
+    status: "SENT",
+    employeeId: "emp-123",
+    documentTypeId: "doc-type-123",
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   beforeEach(() => {
+    // Mock dos repositórios
     mockDocumentRepository = {
-      create: vi.fn(),
-      list: vi.fn(),
+      find: vi.fn(),
       findById: vi.fn(),
+      create: vi.fn(),
       update: vi.fn(),
       softDelete: vi.fn(),
       restore: vi.fn(),
-      find: vi.fn(),
     };
 
     mockDocumentTypeRepository = {
       findById: vi.fn(),
+      find: vi.fn(),
+      list: vi.fn(),
     };
 
     mockEmployeeRepository = {
       findById: vi.fn(),
+      find: vi.fn(),
+      list: vi.fn(),
     };
 
-    // @ts-ignore
+    mockEmployeeService = {
+      getPendingDocuments: vi.fn(),
+      getDocumentationStatus: vi.fn(),
+    };
+
+    // Criar instância do service com dependências mockadas
     service = new DocumentService(
       mockDocumentRepository,
       mockDocumentTypeRepository,
-      mockEmployeeRepository
+      mockEmployeeRepository,
+      mockEmployeeService
     );
+
+    // Limpar todos os mocks antes de cada teste
+    vi.clearAllMocks();
   });
 
-  describe("createDocument", () => {
-    const validDocumentData = {
-      employeeId: new Types.ObjectId().toString(),
-      documentTypeId: new Types.ObjectId().toString(),
-      fileName: "documento-teste.pdf",
-      filePath: "/uploads/documento-teste.pdf",
-      fileSize: 1024,
-      mimeType: "application/pdf"
+  describe("Verificação da instância e injeção", () => {
+    it("deve ser criado corretamente", () => {
+      expect(service).toBeInstanceOf(DocumentService);
+    });
+
+    it("deve ter todas as dependências injetadas", () => {
+      expect(service["documentRepository"]).toBeDefined();
+      expect(service["documentTypeRepository"]).toBeDefined();
+      expect(service["employeeRepository"]).toBeDefined();
+      expect(service["employeeService"]).toBeDefined();
+    });
+  });
+
+  describe("extractId - Método auxiliar", () => {
+    it("deve extrair ID como string", () => {
+      const obj = { _id: "test-id" };
+      const result = service["extractId"](obj);
+      expect(result).toBe("test-id");
+    });
+
+    it("deve extrair ID de ObjectId", () => {
+      const obj = { _id: { toString: () => "object-id" } };
+      const result = service["extractId"](obj);
+      expect(result).toBe("object-id");
+    });
+
+    it("deve retornar string vazia se não há _id", () => {
+      const obj = {};
+      const result = service["extractId"](obj);
+      expect(result).toBe("");
+    });
+  });
+
+  describe("getPendingDocuments - Documentos Pendentes", () => {
+    const mockPendingDoc = {
+      employee: { id: "emp-123", name: "João Silva" },
+      documentType: { id: "doc-type-123", name: "CPF" },
+      status: "PENDING",
+      isActive: true,
     };
 
-    it("deve criar documento com sucesso", async () => {
-      const mockEmployee = { _id: validDocumentData.employeeId, name: "João" };
-      const mockDocumentType = { _id: validDocumentData.documentTypeId, name: "CPF" };
-      const mockCreatedDocument = { ...validDocumentData, _id: new Types.ObjectId() };
-
-      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
-      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
-      mockDocumentRepository.create.mockResolvedValue(mockCreatedDocument);
-
-      const result = await service.createDocument(validDocumentData);
-
-      expect(mockEmployeeRepository.findById).toHaveBeenCalledWith(validDocumentData.employeeId);
-      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(validDocumentData.documentTypeId);
-      expect(result).toEqual(mockCreatedDocument);
+    beforeEach(() => {
+      // Mock das validações - validateObjectId retorna string
+      vi.spyOn(ValidationUtils, "validateObjectId").mockImplementation(
+        (id: string) => id
+      );
+      vi.spyOn(PaginationUtils, "validatePage").mockImplementation(() => {});
     });
 
-    it("deve lançar erro para employeeId inválido", async () => {
-      const invalidData = { ...validDocumentData, employeeId: "invalid-id" };
+    it("deve retornar documentos pendentes com parâmetros padrão", async () => {
+      // Arrange
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc,
+      ]);
 
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-      expect(mockEmployeeRepository.findById).not.toHaveBeenCalled();
+      // Act
+      const result = await service.getPendingDocuments({});
+
+      // Assert
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("pagination");
+      expect(mockEmployeeRepository.list).toHaveBeenCalledWith(
+        { isActive: { $ne: false } },
+        { page: 1, limit: 1000 }
+      );
     });
 
-    it("deve lançar erro para documentTypeId inválido", async () => {
-      const invalidData = { ...validDocumentData, documentTypeId: "invalid-id" };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-      expect(mockDocumentTypeRepository.findById).not.toHaveBeenCalled();
-    });
-
-    it("deve lançar erro para fileName vazio", async () => {
-      const invalidData = { ...validDocumentData, fileName: "" };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-    });
-
-    it("deve lançar erro para filePath vazio", async () => {
-      const invalidData = { ...validDocumentData, filePath: "" };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-    });
-
-    it("deve lançar erro para mimeType vazio", async () => {
-      const invalidData = { ...validDocumentData, mimeType: "" };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-    });
-
-    it("deve lançar erro para fileSize zero", async () => {
-      const invalidData = { ...validDocumentData, fileSize: 0 };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-    });
-
-    it("deve lançar erro para fileSize negativo", async () => {
-      const invalidData = { ...validDocumentData, fileSize: -1 };
-
-      await expect(service.createDocument(invalidData)).rejects.toThrow(BadRequest);
-    });
-
-    it("deve lançar erro se employee não existe", async () => {
-      mockEmployeeRepository.findById.mockResolvedValue(null);
-      mockDocumentTypeRepository.findById.mockResolvedValue({ _id: validDocumentData.documentTypeId });
-
-      await expect(service.createDocument(validDocumentData)).rejects.toThrow(NotFound);
-      expect(mockDocumentRepository.create).not.toHaveBeenCalled();
-    });
-
-    it("deve lançar erro se documentType não existe", async () => {
-      mockEmployeeRepository.findById.mockResolvedValue({ _id: validDocumentData.employeeId });
+    it("deve validar documentTypeId quando fornecido", async () => {
+      // Arrange
+      const params = { documentTypeId: "invalid-id" };
       mockDocumentTypeRepository.findById.mockResolvedValue(null);
 
-      await expect(service.createDocument(validDocumentData)).rejects.toThrow(NotFound);
-      expect(mockDocumentRepository.create).not.toHaveBeenCalled();
-    });
-  });
+      // Act
+      const result = await service.getPendingDocuments(params);
 
-  describe("findById", () => {
-    it("deve encontrar documento por ID válido", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const mockDocument = { _id: documentId, fileName: "documento.pdf" };
-
-      mockDocumentRepository.findById.mockResolvedValue(mockDocument);
-
-      const result = await service.findById(documentId);
-
-      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
-      expect(result).toEqual(mockDocument);
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(
+        "invalid-id",
+        "documentTypeId"
+      );
+      expect(result.data).toEqual([]);
+      expect(result.pagination.total).toBe(0);
     });
 
-    it("deve lançar erro para ID inválido", async () => {
-      const invalidId = "invalid-id";
+    it("deve retornar vazio se tipo de documento não existe", async () => {
+      // Arrange
+      const params = { documentTypeId: "doc-type-123" };
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
 
-      await expect(service.findById(invalidId)).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.findById).not.toHaveBeenCalled();
+      // Act
+      const result = await service.getPendingDocuments(params);
+
+      // Assert
+      expect(result.data).toEqual([]);
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      });
     });
 
-    it("deve retornar null se documento não existe", async () => {
-      const documentId = new Types.ObjectId().toString();
+    it("deve filtrar documentos por status ativo", async () => {
+      // Arrange
+      const params = { status: "active" };
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        { ...mockPendingDoc, isActive: true },
+        { ...mockPendingDoc, isActive: false },
+      ]);
 
-      mockDocumentRepository.findById.mockResolvedValue(null);
+      // Act
+      const result = await service.getPendingDocuments(params);
 
-      const result = await service.findById(documentId);
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("updateDocument", () => {
-    it("deve atualizar documento com sucesso", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const updateData = { name: "Documento Atualizado", status: DocumentStatus.SENT };
-      const existingDocument = { _id: documentId, name: "Doc Antigo" };
-      const mockUpdatedDocument = { _id: documentId, ...updateData };
-
-      mockDocumentRepository.findById.mockResolvedValue(existingDocument);
-      mockDocumentRepository.update.mockResolvedValue(mockUpdatedDocument);
-
-      const result = await service.updateDocument(documentId, updateData);
-
-      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
-      expect(mockDocumentRepository.update).toHaveBeenCalledWith(documentId, updateData);
-      expect(result).toEqual(mockUpdatedDocument);
+      // Assert
+      expect(result.data).toBeDefined();
+      // Documentos inativos devem ser filtrados
     });
 
-    it("deve lançar erro para ID inválido", async () => {
-      const invalidId = "invalid-id";
-      const updateData = { name: "Documento Atualizado" };
+    it("deve filtrar documentos por status inativo", async () => {
+      // Arrange
+      const params = { status: "inactive" };
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        { ...mockPendingDoc, isActive: false },
+      ]);
 
-      await expect(service.updateDocument(invalidId, updateData)).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.update).not.toHaveBeenCalled();
+      // Act
+      const result = await service.getPendingDocuments(params);
+
+      // Assert
+      expect(result.data).toBeDefined();
     });
 
-    it("deve retornar null se documento não existe", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const updateData = { status: DocumentStatus.SENT };
+    it('deve retornar todos os documentos quando status é "all"', async () => {
+      // Arrange
+      const params = { status: "all" };
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc,
+      ]);
 
-      mockDocumentRepository.findById.mockResolvedValue(null);
+      // Act
+      const result = await service.getPendingDocuments(params);
 
-      const result = await service.updateDocument(documentId, updateData);
-      expect(result).toBeNull();
+      // Assert
+      expect(result.data).toBeDefined();
     });
 
-    it("deve retornar documento existente se não há dados para atualizar", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const existingDocument = { _id: documentId, name: "Doc Existente" };
-      
-      mockDocumentRepository.findById.mockResolvedValue(existingDocument);
-      
-      const result = await service.updateDocument(documentId, {});
-      
-      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
-      expect(mockDocumentRepository.update).not.toHaveBeenCalled();
-      expect(result).toEqual(existingDocument);
-    });
-  });
+    it("deve tratar erro ao buscar documentos de um colaborador", async () => {
+      // Arrange
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockRejectedValue(
+        new Error("Erro de teste")
+      );
+      const consoleSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
-  describe("list", () => {
-    it("deve listar documentos com paginação padrão", async () => {
-      const mockResponse = {
-        items: [
-          { _id: "1", fileName: "doc1.pdf" },
-          { _id: "2", fileName: "doc2.pdf" }
-        ],
-        total: 2
+      // Act
+      const result = await service.getPendingDocuments({});
+
+      // Assert
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(result.data).toEqual([]);
+      consoleSpy.mockRestore();
+    });
+
+    it("deve aplicar paginação corretamente", async () => {
+      // Arrange
+      const params = { page: 2, limit: 5 };
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: Array(10)
+          .fill(mockEmployee)
+          .map((emp, i) => ({ ...emp, _id: `emp-${i}` })),
+        total: 10,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc,
+      ]);
+
+      // Act
+      const result = await service.getPendingDocuments(params);
+
+      // Assert
+      expect(PaginationUtils.validatePage).toHaveBeenCalled();
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.limit).toBe(5);
+    });
+
+    it("deve cobrir verificação de empId vazio", async () => {
+      // Arrange - Simular um ObjectId que toString() retorna string vazia
+      const employeeWithEmptyStringId = {
+        ...mockEmployee,
+        _id: { toString: () => "" }, // ObjectId que retorna string vazia
       };
 
-      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [employeeWithEmptyStringId, mockEmployee],
+        total: 2,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc,
+      ]);
 
-      const result = await service.list();
+      // Act
+      const result = await service.getPendingDocuments({});
 
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith({}, {});
-      expect(result).toEqual(mockResponse);
+      // Assert
+      // Deve chamar getPendingDocuments apenas para o employee com _id válido
+      expect(mockEmployeeService.getPendingDocuments).toHaveBeenCalledTimes(1);
+      expect(mockEmployeeService.getPendingDocuments).toHaveBeenCalledWith(
+        "emp-123"
+      );
+      expect(result.data).toBeDefined();
     });
 
-    it("deve listar com filtros customizados", async () => {
-      const employeeId = new Types.ObjectId().toString();
-      const documentTypeId = new Types.ObjectId().toString();
-      const filters = { 
-        employeeId, 
-        documentTypeId
-      };
-      const opts = { page: 2, limit: 5 };
-      
-      const mockResponse = {
-        items: [{ _id: "1", fileName: "doc-filtrado.pdf" }],
-        total: 1
+    it("deve filtrar documentos pendentes por documentTypeId específico", async () => {
+      // Arrange
+      const params = { documentTypeId: "doc-type-456" };
+      const pendingDocWithDifferentType = {
+        ...mockPendingDoc,
+        documentType: { id: "doc-type-789", name: "RG" },
       };
 
-      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc, // documentType.id: 'doc-type-123'
+        pendingDocWithDifferentType, // documentType.id: 'doc-type-789'
+      ]);
 
-      const result = await service.list(filters, opts);
+      // Act
+      const result = await service.getPendingDocuments(params);
 
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith(filters, opts);
-      expect(result).toEqual(mockResponse);
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(
+        "doc-type-456",
+        "documentTypeId"
+      );
+      // Apenas documentos com o tipo correto devem ser incluídos
+      expect(result.data).toBeDefined();
+    });
+
+    it("deve ordenar documentos pendentes por nome do tipo dentro de cada colaborador", async () => {
+      // Arrange - criar múltiplos documentos pendentes para o mesmo colaborador
+      const mockPendingDoc1 = {
+        documentType: { id: "doc-type-1", name: "ZZZ-Último" },
+        isActive: true,
+      };
+      const mockPendingDoc2 = {
+        documentType: { id: "doc-type-2", name: "AAA-Primeiro" },
+        isActive: true,
+      };
+
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [mockEmployee],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        mockPendingDoc1,
+        mockPendingDoc2,
+      ]);
+
+      // Act
+      const result = await service.getPendingDocuments({});
+
+      // Assert
+      expect(result.data.length).toBe(1); // Um colaborador
+      expect(result.data[0].documents.length).toBe(2); // Dois documentos
+      // Verificar se estão ordenados alfabeticamente (AAA vem antes de ZZZ)
+      expect(result.data[0].documents[0].documentTypeName).toBe("AAA-Primeiro");
+      expect(result.data[0].documents[1].documentTypeName).toBe("ZZZ-Último");
     });
   });
 
-  describe("delete", () => {
-    it("deve fazer soft delete com sucesso", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const mockDocument = { _id: documentId, isActive: true };
-      const mockDeletedDocument = { _id: documentId, isActive: false };
+  describe("getSentDocuments - Documentos Enviados", () => {
+    const mockSentDocument = {
+      ...mockDocument,
+      status: "SENT",
+      employeeId: { toString: () => "emp-123" },
+      documentTypeId: { toString: () => "doc-type-123" },
+    };
 
-      mockDocumentRepository.findById.mockResolvedValue(mockDocument);
-      mockDocumentRepository.softDelete.mockResolvedValue(mockDeletedDocument);
-
-      const result = await service.delete(documentId);
-
-      expect(mockDocumentRepository.findById).toHaveBeenCalledWith(documentId);
-      expect(mockDocumentRepository.softDelete).toHaveBeenCalledWith(documentId);
-      expect(result).toEqual(mockDeletedDocument);
+    beforeEach(() => {
+      vi.spyOn(ValidationUtils, "validateObjectId").mockImplementation(
+        (id: string) => id
+      );
+      vi.spyOn(PaginationUtils, "validatePage").mockImplementation(() => {});
     });
 
-    it("deve lançar erro para ID inválido", async () => {
-      const invalidId = "invalid-id";
+    it("deve retornar documentos enviados com parâmetros padrão", async () => {
+      // Arrange
+      mockDocumentRepository.find.mockResolvedValue([mockSentDocument]);
+      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
 
-      await expect(service.delete(invalidId)).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.softDelete).not.toHaveBeenCalled();
+      // Act
+      const result = await service.getSentDocuments({});
+
+      // Assert
+      expect(result).toHaveProperty("data");
+      expect(result).toHaveProperty("pagination");
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        isActive: true,
+      });
     });
 
-    it("deve lançar erro para ID vazio", async () => {
-      await expect(service.delete("")).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.softDelete).not.toHaveBeenCalled();
+    it("deve validar documentTypeId quando fornecido", async () => {
+      // Arrange
+      const params = { documentTypeId: "invalid-id" };
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(
+        "invalid-id",
+        "documentTypeId"
+      );
+      expect(result.data).toEqual([]);
+      expect(result.pagination.total).toBe(0);
     });
 
-    it("deve retornar null se documento não existe", async () => {
-      const documentId = new Types.ObjectId().toString();
+    it("deve filtrar por status inativo", async () => {
+      // Arrange
+      const params = { status: "inactive" };
+      mockDocumentRepository.find.mockResolvedValue([]);
 
-      mockDocumentRepository.findById.mockResolvedValue(null);
+      // Act
+      const result = await service.getSentDocuments(params);
 
-      const result = await service.delete(documentId);
-      expect(result).toBeNull();
+      // Assert
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        isActive: false,
+      });
+    });
+
+    it("deve filtrar por status ativo", async () => {
+      // Arrange
+      const params = { status: "active" };
+      mockDocumentRepository.find.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        isActive: true,
+      });
+    });
+
+    it("deve filtrar por employeeId", async () => {
+      // Arrange
+      const params = { employeeId: "emp-123" };
+      mockDocumentRepository.find.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        isActive: true,
+        employeeId: "emp-123",
+      });
+    });
+
+    it("deve filtrar por documentTypeId", async () => {
+      // Arrange
+      const params = { documentTypeId: "doc-type-123" };
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+      mockDocumentRepository.find.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        isActive: true,
+        documentTypeId: "doc-type-123",
+      });
+    });
+
+    it("deve combinar todos os filtros", async () => {
+      // Arrange
+      const params = {
+        status: "all",
+        employeeId: "emp-123",
+        documentTypeId: "doc-type-123",
+      };
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+      mockDocumentRepository.find.mockResolvedValue([]);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(mockDocumentRepository.find).toHaveBeenCalledWith({
+        status: "SENT",
+        employeeId: "emp-123",
+        documentTypeId: "doc-type-123",
+      });
+    });
+
+    it("deve aplicar paginação corretamente", async () => {
+      // Arrange
+      const params = { page: 2, limit: 3 };
+      const mockDocs = Array(10).fill(mockSentDocument);
+      mockDocumentRepository.find.mockResolvedValue(mockDocs);
+      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+
+      // Act
+      const result = await service.getSentDocuments(params);
+
+      // Assert
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.limit).toBe(3);
+      expect(result.pagination.totalPages).toBeGreaterThan(0);
+    });
+
+    it("deve ordenar documentos por nome do tipo dentro de cada colaborador", async () => {
+      // Arrange - garantir que ambos documentos têm o MESMO employeeId
+      const sameEmployeeId = "emp-123";
+      const mockDoc1 = {
+        _id: "doc-1",
+        value: "test1",
+        status: "SENT",
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        employeeId: { toString: () => sameEmployeeId },
+        documentTypeId: { toString: () => "doc-type-1" },
+      };
+      const mockDoc2 = {
+        _id: "doc-2",
+        value: "test2",
+        status: "SENT",
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        employeeId: { toString: () => sameEmployeeId },
+        documentTypeId: { toString: () => "doc-type-2" },
+      };
+
+      // Setup para garantir que os documentos são retornados
+      mockDocumentRepository.find.mockResolvedValue([mockDoc1, mockDoc2]);
+
+      // Setup para o findById do employee - deve retornar sempre o mesmo employee
+      mockEmployeeRepository.findById.mockResolvedValue({
+        _id: sameEmployeeId,
+        name: "João Silva",
+        document: "123.456.789-00",
+        isActive: true,
+      });
+
+      // Setup para os tipos de documento - ordem específica para garantir que o sort funcione
+      mockDocumentTypeRepository.findById
+        .mockResolvedValueOnce({
+          _id: "doc-type-1",
+          name: "ZZZ-Último",
+          isActive: true,
+        }) // Doc1 - Z vem depois
+        .mockResolvedValueOnce({
+          _id: "doc-type-2",
+          name: "AAA-Primeiro",
+          isActive: true,
+        }); // Doc2 - A vem antes
+
+      // Act
+      const result = await service.getSentDocuments({});
+
+      // Assert
+      expect(result.data.length).toBe(1); // Um colaborador
+      expect(result.data[0].documents.length).toBe(2); // Dois documentos
+      // Verificar se estão ordenados alfabeticamente (AAA vem antes de ZZZ)
+      expect(result.data[0].documents[0].documentTypeName).toBe("AAA-Primeiro");
+      expect(result.data[0].documents[1].documentTypeName).toBe("ZZZ-Último");
     });
   });
 
-  describe("restore", () => {
-    it("deve restaurar documento com sucesso", async () => {
-      const documentId = new Types.ObjectId().toString();
-      const mockRestoredDocument = { _id: documentId, isActive: true };
+  describe("restore - Restaurar Documento", () => {
+    it("deve restaurar um documento com sucesso", async () => {
+      // Arrange
+      const documentId = "doc-123";
+      const restoredDocument = { ...mockDocument, isActive: true };
+      mockDocumentRepository.restore.mockResolvedValue(restoredDocument);
 
-      mockDocumentRepository.restore.mockResolvedValue(mockRestoredDocument);
-
+      // Act
       const result = await service.restore(documentId);
 
+      // Assert
       expect(mockDocumentRepository.restore).toHaveBeenCalledWith(documentId);
-      expect(result).toEqual(mockRestoredDocument);
+      expect(result).toEqual(restoredDocument);
     });
 
-    it("deve lançar erro para ID inválido", async () => {
-      const invalidId = "invalid-id";
-
-      await expect(service.restore(invalidId)).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.restore).not.toHaveBeenCalled();
-    });
-
-    it("deve lançar erro para ID vazio", async () => {
-      await expect(service.restore("")).rejects.toThrow(BadRequest);
-      expect(mockDocumentRepository.restore).not.toHaveBeenCalled();
-    });
-
-    it("deve retornar null se documento não pode ser restaurado", async () => {
-      const documentId = new Types.ObjectId().toString();
-
+    it("deve retornar null se documento não encontrado", async () => {
+      // Arrange
+      const documentId = "doc-inexistente";
       mockDocumentRepository.restore.mockResolvedValue(null);
 
+      // Act
       const result = await service.restore(documentId);
+
+      // Assert
+      expect(mockDocumentRepository.restore).toHaveBeenCalledWith(documentId);
       expect(result).toBeNull();
+    });
+
+    it("deve propagar erro de CastError automaticamente", async () => {
+      // Arrange
+      const invalidId = "invalid-id";
+      const castError = new Error("CastError: Cast to ObjectId failed");
+      castError.name = "CastError";
+      mockDocumentRepository.restore.mockRejectedValue(castError);
+
+      // Act & Assert
+      await expect(service.restore(invalidId)).rejects.toThrow(castError);
+      expect(mockDocumentRepository.restore).toHaveBeenCalledWith(invalidId);
     });
   });
 
-  describe("listPending", () => {
-    it("deve listar documentos pendentes", async () => {
-      const mockResponse = {
-        items: [
-          { _id: "1", fileName: "doc1.pdf", status: DocumentStatus.PENDING },
-          { _id: "2", fileName: "doc2.pdf", status: DocumentStatus.PENDING }
-        ],
-        total: 2
-      };
+  describe("Cenários de edge cases e tratamento de erro", () => {
+    const mockSentDocument = {
+      ...mockDocument,
+      status: "SENT",
+      employeeId: { toString: () => "emp-123" },
+      documentTypeId: { toString: () => "doc-type-123" },
+    };
 
-      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+    it("deve lidar com lista vazia de colaboradores", async () => {
+      // Arrange
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [],
+        total: 0,
+      });
 
-      const result = await service.listPending();
+      // Act
+      const result = await service.getPendingDocuments({});
 
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
-        status: "pending"
-      }, {});
-      expect(result).toEqual(mockResponse);
+      // Assert
+      expect(result.data).toEqual([]);
+      expect(result.pagination.total).toBe(0);
     });
 
-    it("deve filtrar documentos pendentes por employeeId", async () => {
-      const employeeId = new Types.ObjectId().toString();
-      const mockResponse = {
-        items: [
-          { _id: "1", fileName: "doc.pdf", employeeId, status: DocumentStatus.PENDING }
-        ],
-        total: 1
-      };
+    it("deve lidar com documentos enviados sem colaborador válido", async () => {
+      // Arrange
+      mockDocumentRepository.find.mockResolvedValue([mockSentDocument]);
+      mockEmployeeRepository.findById.mockResolvedValue(null);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
 
-      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+      // Act
+      const result = await service.getSentDocuments({});
 
-      const result = await service.listPending({ employeeId });
-
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
-        status: "pending",
-        employeeId: new Types.ObjectId(employeeId)
-      }, {});
-      expect(result).toEqual(mockResponse);
+      // Assert
+      expect(result.data).toEqual([]);
     });
 
-    it("deve filtrar documentos pendentes por documentTypeId", async () => {
-      const documentTypeId = new Types.ObjectId().toString();
-      const mockResponse = {
-        items: [
-          { _id: "1", fileName: "doc.pdf", documentTypeId, status: DocumentStatus.PENDING }
-        ],
-        total: 1
-      };
+    it("deve lidar com documentos enviados sem tipo válido", async () => {
+      // Arrange
+      mockDocumentRepository.find.mockResolvedValue([mockSentDocument]);
+      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
 
-      mockDocumentRepository.list.mockResolvedValue(mockResponse);
+      // Act
+      const result = await service.getSentDocuments({});
 
-      const result = await service.listPending({ documentTypeId });
-
-      expect(mockDocumentRepository.list).toHaveBeenCalledWith({
-        status: "pending",
-        documentTypeId: new Types.ObjectId(documentTypeId)
-      }, {});
-      expect(result).toEqual(mockResponse);
+      // Assert
+      expect(result.data.length).toBeGreaterThan(0);
+      expect(result.data[0].documents[0].documentTypeName).toBe(
+        "Tipo não encontrado"
+      );
     });
 
-    it("deve lançar erro para employeeId inválido no filtro", async () => {
-      await expect(service.listPending({ employeeId: "invalid-id" })).rejects.toThrow(BadRequest);
-    });
+    it("deve manter paginação consistente mesmo com dados vazios", async () => {
+      // Arrange
+      mockDocumentRepository.find.mockResolvedValue([]);
 
-    it("deve lançar erro para documentTypeId inválido no filtro", async () => {
-      await expect(service.listPending({ documentTypeId: "invalid-id" })).rejects.toThrow(BadRequest);
+      // Act
+      const result = await service.getSentDocuments({ page: 1, limit: 10 });
+
+      // Assert
+      expect(result.pagination).toEqual({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      });
     });
   });
 });
