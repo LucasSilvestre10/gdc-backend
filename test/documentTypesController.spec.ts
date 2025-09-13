@@ -1,385 +1,536 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DocumentTypesController } from '../src/controllers/rest/DocumentTypesController';
-import { DocumentTypeService } from '../src/services/DocumentTypeService';
-import { CreateDocumentTypeDto, UpdateDocumentTypeDto } from '../src/dtos/documentTypeDTO';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { DocumentTypesController } from "../src/controllers/rest/DocumentTypesController";
+import { DocumentTypeService } from "../src/services/DocumentTypeService";
+import { ResponseHandler } from "../src/middleware/ResponseHandler";
+import { PaginationUtils } from "../src/utils/PaginationUtils";
+import { NotFound } from "@tsed/exceptions";
 
-// Testes para o controller de tipos de documento
-describe('DocumentTypesController', () => {
-    let controller: DocumentTypesController;
-    let mockDocumentTypeService: Partial<DocumentTypeService>;
+// Mock das dependências
+vi.mock("../src/services/DocumentTypeService");
+vi.mock("../src/middleware/ResponseHandler");
+vi.mock("../src/utils/PaginationUtils");
 
-    // Mock de um tipo de documento para uso nos testes
-    const mockDocumentType = {
-        _id: '507f1f77bcf86cd799439011',
-        name: 'CPF',
-        createdAt: new Date(),
-        updatedAt: new Date()
+describe("DocumentTypesController", () => {
+  let controller: DocumentTypesController;
+  let mockDocumentTypeService: any;
+
+  beforeEach(() => {
+    // Configurar mocks
+    mockDocumentTypeService = {
+      create: vi.fn(),
+      list: vi.fn(),
+      findById: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      restore: vi.fn(),
+      getLinkedEmployees: vi.fn(),
     };
 
-    // Antes de cada teste, cria um mock do service e injeta no controller
-    beforeEach(() => {
-        mockDocumentTypeService = {
-            create: vi.fn(),
-            list: vi.fn(),
-            findById: vi.fn(),
-            findByIds: vi.fn(),
-            update: vi.fn(),
-            delete: vi.fn(),
-            restore: vi.fn(),
-            getLinkedEmployees: vi.fn()
-        };
-        
-        // Criar o controller passando o mock do service como argumento
-        controller = new DocumentTypesController(mockDocumentTypeService as DocumentTypeService);
+    // Mock do ResponseHandler
+    (ResponseHandler.success as any) = vi
+      .fn()
+      .mockImplementation((data, message) => ({
+        success: true,
+        data,
+        message,
+      }));
+
+    // Mock do PaginationUtils
+    (PaginationUtils.validatePage as any) = vi.fn();
+    (PaginationUtils.createPaginatedResult as any) = vi
+      .fn()
+      .mockImplementation((items, page, limit, total) => ({
+        items,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      }));
+
+    // Injetar o mock no controller usando Object.defineProperty
+    controller = new DocumentTypesController(mockDocumentTypeService);
+    Object.defineProperty(controller, "documentTypeService", {
+      value: mockDocumentTypeService,
+      writable: true,
     });
-
-    // Testes para o método create
-    describe('create', () => {
-        // Deve criar um tipo de documento com sucesso
-        it('should create document type successfully', async () => {
-            const createDto: CreateDocumentTypeDto = { name: 'CPF' };
-            
-            (mockDocumentTypeService.create as any).mockResolvedValue(mockDocumentType);
-
-            const result = await controller.create(createDto);
-
-            // Espera que o método create do service seja chamado com o DTO
-            expect(mockDocumentTypeService.create).toHaveBeenCalledWith(createDto);
-            // Espera que o retorno seja o objeto esperado de sucesso com ResponseHandler
-            expect(result).toEqual({
-                success: true,
-                message: 'Tipo de documento criado com sucesso',
-                data: mockDocumentType,
-                timestamp: expect.any(String)
-            });
-        });
-
-        // Deve tratar erro ao criar tipo de documento
-        it('should handle create error', async () => {
-            const createDto: CreateDocumentTypeDto = { name: 'CPF' };
-            const error = new Error('Database error');
-            
-            (mockDocumentTypeService.create as any).mockRejectedValue(error);
-
-            // Espera que o erro seja lançado
-            await expect(controller.create(createDto)).rejects.toThrow(error);
-        });
-    });
-
-    // Testes para o método list
-    describe('list', () => {
-        // Deve listar tipos de documento com paginação
-        it('should list document types with pagination', async () => {
-            const mockResult = {
-                items: [mockDocumentType],
-                total: 1
-            };
-            
-            (mockDocumentTypeService.list as any).mockResolvedValue(mockResult);
-
-            const result = await controller.list(1, 10);
-
-            // Espera que o método list do service seja chamado com filters e options
-            expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
-                { name: undefined, status: 'active' },
-                { page: 1, limit: 10 }
-            );
-            // Espera que o retorno use a nova estrutura com ResponseHandler
-            expect(result).toEqual({
-                success: true,
-                message: 'Tipos de documento listados com sucesso',
-                data: {
-                    items: mockResult.items,
-                    pagination: {
-                        page: 1,
-                        limit: 10,
-                        total: 1,
-                        totalPages: 1
-                    }
-                },
-                timestamp: expect.any(String)
-            });
-        });
-
-        // Deve usar valores padrão de paginação se não informados
-        it('should use default pagination values', async () => {
-            const mockResult = {
-                items: [],
-                total: 0
-            };
-            
-            (mockDocumentTypeService.list as any).mockResolvedValue(mockResult);
-
-            const result = await controller.list();
-
-            // Espera que o service seja chamado com valores padrão
-            expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
-                { name: undefined, status: 'active' },
-                { page: 1, limit: 10 }
-            );
-            // Espera que a paginação seja padrão na nova estrutura
-            expect(result.data.pagination).toEqual({
-                page: 1,
-                limit: 10,
-                total: 0,
-                totalPages: 0
-            });
-        });
-
-        // Deve calcular corretamente o total de páginas
-        it('should calculate totalPages correctly', async () => {
-            const mockResult = {
-                items: Array(25).fill(mockDocumentType),
-                total: 25
-            };
-            
-            (mockDocumentTypeService.list as any).mockResolvedValue(mockResult);
-
-            const result = await controller.list(1, 10);
-
-            // Espera que o total de páginas seja 3 (25 itens, 10 por página)
-            expect(result.data.pagination.totalPages).toBe(3);
-        });
-
-        // Deve tratar erro ao listar tipos de documento
-        it('should handle list error', async () => {
-            const error = new Error('Database error');
-            
-            (mockDocumentTypeService.list as any).mockRejectedValue(error);
-
-            // Espera que o erro seja lançado
-            await expect(controller.list()).rejects.toThrow(error);
-        });
-    });
-
-    // Testes para o método findById
-    describe('findById', () => {
-        // Deve encontrar tipo de documento pelo id com sucesso
-        it('should find document type by id successfully', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            
-            (mockDocumentTypeService.findById as any).mockResolvedValue(mockDocumentType);
-
-            const result = await controller.findById(id);
-
-            // Espera que o método findById do service seja chamado com o id
-            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-            // Espera que o retorno seja o objeto esperado de sucesso com ResponseHandler
-            expect(result).toEqual({
-                success: true,
-                message: 'Tipo de documento encontrado com sucesso',
-                data: mockDocumentType,
-                timestamp: expect.any(String)
-            });
-        });
-
-        // Deve lançar NotFound quando tipo de documento não existe
-        it('should throw NotFound when document type does not exist', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            
-            (mockDocumentTypeService.findById as any).mockResolvedValue(null);
-
-            // Espera que uma exceção NotFound seja lançada
-            await expect(controller.findById(id)).rejects.toThrow('Tipo de documento não encontrado');
-            // Espera que o método findById do service seja chamado com o id
-            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-        });
-
-        // Deve tratar erro ao buscar tipo de documento por id
-        it('should handle findById error', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            const error = new Error('Database error');
-            
-            (mockDocumentTypeService.findById as any).mockRejectedValue(error);
-
-            // Espera que o erro seja lançado
-            await expect(controller.findById(id)).rejects.toThrow(error);
-        });
-    });
-
-    // Testes para o método update
-    describe('update', () => {
-        it('should update document type successfully', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            const updateDto: UpdateDocumentTypeDto = { name: 'CPF Atualizado' };
-            const updatedDocumentType = { ...mockDocumentType, name: 'CPF Atualizado' };
-            
-            (mockDocumentTypeService.update as any).mockResolvedValue(updatedDocumentType);
-
-            const result = await controller.update(id, updateDto);
-
-            expect(mockDocumentTypeService.update).toHaveBeenCalledWith(id, updateDto);
-            expect(result).toEqual({
-                success: true,
-                message: 'Tipo de documento atualizado com sucesso',
-                data: updatedDocumentType,
-                timestamp: expect.any(String)
-            });
-        });
-
-        it('should throw NotFound when document type does not exist', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            const updateDto: UpdateDocumentTypeDto = { name: 'CPF Atualizado' };
-            
-            (mockDocumentTypeService.update as any).mockResolvedValue(null);
-
-            await expect(controller.update(id, updateDto)).rejects.toThrow('Tipo de documento não encontrado');
-            expect(mockDocumentTypeService.update).toHaveBeenCalledWith(id, updateDto);
-        });
-
-        it('should propagate service errors', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            const updateDto: UpdateDocumentTypeDto = { name: 'CPF Atualizado' };
-            const error = new Error('Nome já existe');
-            
-            (mockDocumentTypeService.update as any).mockRejectedValue(error);
-
-            await expect(controller.update(id, updateDto)).rejects.toThrow('Nome já existe');
-            expect(mockDocumentTypeService.update).toHaveBeenCalledWith(id, updateDto);
-        });
-    });
-
-    // Testes para o método getLinkedEmployees
-    describe('getLinkedEmployees', () => {
-        // Deve retornar array vazio para tipo de documento existente
-        it('should return empty array for existing document type', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            
-            // Mock findById retornando documento válido
-            (mockDocumentTypeService.findById as any).mockResolvedValue(mockDocumentType);
-            
-            // Mock getLinkedEmployees retornando array vazio
-            (mockDocumentTypeService.getLinkedEmployees as any).mockResolvedValue({
-                items: [],
-                total: 0,
-                totalPages: 0
-            });
-
-            const result = await controller.getLinkedEmployees(id);
-
-            // Espera que o método findById seja chamado primeiro
-            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-            // Espera que o método getLinkedEmployees do service seja chamado com o id
-            expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(id, { page: 1, limit: 10 });
-            // Espera que o retorno seja sucesso com dados paginados
-            expect(result).toEqual({
-                success: true,
-                message: 'Colaboradores vinculados ao tipo de documento listados com sucesso',
-                data: {
-                    items: [],
-                    pagination: {
-                        page: 1,
-                        limit: 10,
-                        total: 0,
-                        totalPages: 0
-                    }
-                },
-                timestamp: expect.any(String)
-            });
-        });
-
-        // Deve lançar NotFound para tipo de documento inexistente
-        it('should throw NotFound for non-existing document type', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            
-            // Mock findById retornando null (documento não encontrado)
-            (mockDocumentTypeService.findById as any).mockResolvedValue(null);
-
-            await expect(controller.getLinkedEmployees(id)).rejects.toThrow('Tipo de documento não encontrado');
-            // Espera que o método findById seja chamado
-            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-            // getLinkedEmployees não deve ser chamado quando documento não existe
-            expect(mockDocumentTypeService.getLinkedEmployees).not.toHaveBeenCalled();
-        });
-
-        // Deve tratar erro ao buscar funcionários vinculados
-        it('should handle getLinkedEmployees error', async () => {
-            const id = '507f1f77bcf86cd799439011';
-            const error = new Error('Database error');
-            
-            // Mock findById retornando documento válido
-            (mockDocumentTypeService.findById as any).mockResolvedValue(mockDocumentType);
-            // Mock getLinkedEmployees lançando erro
-            (mockDocumentTypeService.getLinkedEmployees as any).mockRejectedValue(error);
-
-            // Espera que o erro seja propagado
-            await expect(controller.getLinkedEmployees(id)).rejects.toThrow(error);
-            expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
-            expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(id, { page: 1, limit: 10 });
-        });
   });
 
-  describe('delete', () => {
-    it('should delete document type successfully', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      const deletedDocumentType = { ...mockDocumentType, isActive: false, deletedAt: new Date() };
-      
-      (mockDocumentTypeService.delete as any).mockResolvedValue(deletedDocumentType);
+  describe("create", () => {
+    it("deve criar um tipo de documento com sucesso", async () => {
+      // Arrange
+      const createDto = {
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+      };
+      const createdDocumentType = {
+        _id: "test-id",
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+      };
 
+      mockDocumentTypeService.create.mockResolvedValue(createdDocumentType);
+
+      // Act
+      const result = await controller.create(createDto);
+
+      // Assert
+      expect(mockDocumentTypeService.create).toHaveBeenCalledWith(createDto);
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        createdDocumentType,
+        "Tipo de documento criado com sucesso"
+      );
+      expect(result).toEqual({
+        success: true,
+        data: createdDocumentType,
+        message: "Tipo de documento criado com sucesso",
+      });
+    });
+
+    it("deve propagar erro do service", async () => {
+      // Arrange
+      const createDto = {
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+      };
+      const error = new Error("Nome já existe");
+
+      mockDocumentTypeService.create.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.create(createDto)).rejects.toThrow(error);
+      expect(mockDocumentTypeService.create).toHaveBeenCalledWith(createDto);
+    });
+  });
+
+  describe("list", () => {
+    it("deve listar tipos de documento com parâmetros padrão", async () => {
+      // Arrange
+      const mockResult = {
+        items: [
+          {
+            _id: "test-id",
+            name: "CPF",
+            description: "Cadastro de Pessoa Física",
+          },
+        ],
+        total: 1,
+      };
+
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      // Act
+      const result = await controller.list();
+
+      // Assert
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: undefined, status: "active" },
+        { page: 1, limit: 10 }
+      );
+      expect(PaginationUtils.validatePage).toHaveBeenCalledWith(1, 1, 10);
+      expect(PaginationUtils.createPaginatedResult).toHaveBeenCalledWith(
+        mockResult.items,
+        1,
+        10,
+        1
+      );
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        expect.any(Object),
+        "Tipos de documento listados com sucesso"
+      );
+    });
+
+    it("deve listar tipos de documento com filtros personalizados", async () => {
+      // Arrange
+      const mockResult = {
+        items: [{ _id: "test-id", name: "RG", description: "Registro Geral" }],
+        total: 1,
+      };
+
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      // Act
+      const result = await controller.list(2, 5, "RG", "inactive");
+
+      // Assert
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: "RG", status: "inactive" },
+        { page: 2, limit: 5 }
+      );
+      expect(PaginationUtils.validatePage).toHaveBeenCalledWith(2, 1, 5);
+    });
+
+    it("deve usar status padrão quando não fornecido", async () => {
+      // Arrange
+      const mockResult = { items: [], total: 0 };
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      // Act
+      await controller.list(1, 10, "test");
+
+      // Assert
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: "test", status: "active" },
+        { page: 1, limit: 10 }
+      );
+    });
+
+    it("deve tratar valores null/undefined para page/limit e status vazio corretamente", async () => {
+      // Arrange
+      const mockResult = { items: [{ _id: "a" }], total: 1 };
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      // Act: passar nulls para page/limit e status vazia
+      const result = await controller.list(
+        null as any,
+        null as any,
+        undefined,
+        "" as any
+      );
+
+      // Assert: service recebeu defaults via ?? e ||
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: undefined, status: "active" },
+        { page: 1, limit: 10 }
+      );
+      expect(ResponseHandler.success).toHaveBeenCalled();
+      expect(result).toBeDefined();
+    });
+
+    it("deve aceitar page undefined e limit fornecido (page default, limit personalizado)", async () => {
+      const mockResult = { items: [{ _id: 'a' }], total: 2 };
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      await controller.list(undefined as any, 5 as any, undefined, undefined);
+
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: undefined, status: "active" },
+        { page: 1, limit: 5 }
+      );
+    });
+
+    it("deve aceitar page fornecido e limit undefined (page personalizado, limit default)", async () => {
+      const mockResult = { items: [{ _id: 'b' }], total: 2 };
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      await controller.list(3 as any, undefined as any, undefined, undefined);
+
+      expect(mockDocumentTypeService.list).toHaveBeenCalledWith(
+        { name: undefined, status: "active" },
+        { page: 3, limit: 10 }
+      );
+    });
+
+    it("deve propagar erro quando pagina inválida (validatePage lança)", async () => {
+      // Arrange
+      const mockResult = { items: [], total: 100 };
+      mockDocumentTypeService.list.mockResolvedValue(mockResult);
+
+      // Fazer com que validatePage lance para simular página inválida
+      (PaginationUtils.validatePage as any) = vi.fn().mockImplementation(() => {
+        throw new Error("Página inválida");
+      });
+
+      // Act & Assert
+      await expect(controller.list(999, 10)).rejects.toThrow("Página inválida");
+      expect(mockDocumentTypeService.list).toHaveBeenCalled();
+    });
+  });
+
+  describe("findById", () => {
+    it("deve retornar tipo de documento encontrado", async () => {
+      // Arrange
+      const id = "test-id";
+      const documentType = {
+        _id: id,
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+      };
+
+      mockDocumentTypeService.findById.mockResolvedValue(documentType);
+
+      // Act
+      const result = await controller.findById(id);
+
+      // Assert
+      expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        documentType,
+        "Tipo de documento encontrado com sucesso"
+      );
+      expect(result).toEqual({
+        success: true,
+        data: documentType,
+        message: "Tipo de documento encontrado com sucesso",
+      });
+    });
+
+    it("deve lançar NotFound quando tipo não existir", async () => {
+      // Arrange
+      const id = "inexistent-id";
+      mockDocumentTypeService.findById.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(controller.findById(id)).rejects.toThrow(NotFound);
+      await expect(controller.findById(id)).rejects.toThrow(
+        "Tipo de documento não encontrado"
+      );
+      expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+    });
+  });
+
+  describe("update", () => {
+    it("deve atualizar tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const updateDto = { name: "RG", description: "Registro Geral" };
+      const updatedDocumentType = {
+        _id: id,
+        name: "RG",
+        description: "Registro Geral",
+      };
+
+      mockDocumentTypeService.update.mockResolvedValue(updatedDocumentType);
+
+      // Act
+      const result = await controller.update(id, updateDto);
+
+      // Assert
+      expect(mockDocumentTypeService.update).toHaveBeenCalledWith(
+        id,
+        updateDto
+      );
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        updatedDocumentType,
+        "Tipo de documento atualizado com sucesso"
+      );
+      expect(result).toEqual({
+        success: true,
+        data: updatedDocumentType,
+        message: "Tipo de documento atualizado com sucesso",
+      });
+    });
+
+    it("deve lançar NotFound quando tipo não existir", async () => {
+      // Arrange
+      const id = "inexistent-id";
+      const updateDto = { name: "RG" };
+      mockDocumentTypeService.update.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(controller.update(id, updateDto)).rejects.toThrow(NotFound);
+      await expect(controller.update(id, updateDto)).rejects.toThrow(
+        "Tipo de documento não encontrado"
+      );
+      expect(mockDocumentTypeService.update).toHaveBeenCalledWith(
+        id,
+        updateDto
+      );
+    });
+
+    it("deve propagar erro do service", async () => {
+      // Arrange
+      const id = "test-id";
+      const updateDto = { name: "RG" };
+      const error = new Error("Nome já existe");
+
+      mockDocumentTypeService.update.mockRejectedValue(error);
+
+      // Act & Assert
+      await expect(controller.update(id, updateDto)).rejects.toThrow(error);
+      expect(mockDocumentTypeService.update).toHaveBeenCalledWith(
+        id,
+        updateDto
+      );
+    });
+  });
+
+  describe("delete", () => {
+    it("deve deletar tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const deletedDocumentType = { _id: id, name: "CPF", isActive: false };
+
+      mockDocumentTypeService.delete.mockResolvedValue(deletedDocumentType);
+
+      // Act
       const result = await controller.delete(id);
 
+      // Assert
       expect(mockDocumentTypeService.delete).toHaveBeenCalledWith(id);
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        deletedDocumentType,
+        "Tipo de documento removido com sucesso"
+      );
       expect(result).toEqual({
         success: true,
-        message: 'Tipo de documento removido com sucesso',
         data: deletedDocumentType,
-        timestamp: expect.any(String)
+        message: "Tipo de documento removido com sucesso",
       });
     });
 
-    it('should throw NotFound when document type does not exist', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      
-      (mockDocumentTypeService.delete as any).mockResolvedValue(null);
+    it("deve lançar NotFound quando tipo não existir", async () => {
+      // Arrange
+      const id = "inexistent-id";
+      mockDocumentTypeService.delete.mockResolvedValue(null);
 
-      await expect(controller.delete(id)).rejects.toThrow('Tipo de documento não encontrado');
+      // Act & Assert
+      await expect(controller.delete(id)).rejects.toThrow(NotFound);
+      await expect(controller.delete(id)).rejects.toThrow(
+        "Tipo de documento não encontrado"
+      );
       expect(mockDocumentTypeService.delete).toHaveBeenCalledWith(id);
-    });
-
-    it('should handle delete error', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      const error = new Error('Database error');
-      
-      (mockDocumentTypeService.delete as any).mockRejectedValue(error);
-
-      await expect(controller.delete(id)).rejects.toThrow(error);
     });
   });
 
-  describe('restore', () => {
-    it('should restore document type successfully', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      const restoredDocumentType = { ...mockDocumentType, isActive: true, deletedAt: null };
-      
-      (mockDocumentTypeService.restore as any).mockResolvedValue(restoredDocumentType);
+  describe("restore", () => {
+    it("deve restaurar tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const restoredDocumentType = { _id: id, name: "CPF", isActive: true };
 
+      mockDocumentTypeService.restore.mockResolvedValue(restoredDocumentType);
+
+      // Act
       const result = await controller.restore(id);
 
+      // Assert
       expect(mockDocumentTypeService.restore).toHaveBeenCalledWith(id);
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        restoredDocumentType,
+        "Tipo de documento reativado com sucesso"
+      );
       expect(result).toEqual({
         success: true,
-        message: 'Tipo de documento reativado com sucesso',
         data: restoredDocumentType,
-        timestamp: expect.any(String)
+        message: "Tipo de documento reativado com sucesso",
       });
     });
 
-    it('should throw NotFound when document type does not exist', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      
-      (mockDocumentTypeService.restore as any).mockResolvedValue(null);
+    it("deve lançar NotFound quando tipo não existir", async () => {
+      // Arrange
+      const id = "inexistent-id";
+      mockDocumentTypeService.restore.mockResolvedValue(null);
 
-      await expect(controller.restore(id)).rejects.toThrow('Tipo de documento não encontrado');
+      // Act & Assert
+      await expect(controller.restore(id)).rejects.toThrow(NotFound);
+      await expect(controller.restore(id)).rejects.toThrow(
+        "Tipo de documento não encontrado"
+      );
       expect(mockDocumentTypeService.restore).toHaveBeenCalledWith(id);
     });
+  });
 
-    it('should handle restore error', async () => {
-      const id = '507f1f77bcf86cd799439011';
-      const error = new Error('Database error');
-      
-      (mockDocumentTypeService.restore as any).mockRejectedValue(error);
+  describe("getLinkedEmployees", () => {
+    it("deve retornar colaboradores vinculados com parâmetros padrão", async () => {
+      // Arrange
+      const id = "test-id";
+      const documentType = { _id: id, name: "CPF" };
+      const linkedEmployees = {
+        items: [
+          { _id: "emp1", name: "João" },
+          { _id: "emp2", name: "Maria" },
+        ],
+        total: 2,
+      };
 
-      await expect(controller.restore(id)).rejects.toThrow(error);
+      mockDocumentTypeService.findById.mockResolvedValue(documentType);
+      mockDocumentTypeService.getLinkedEmployees.mockResolvedValue(
+        linkedEmployees
+      );
+
+      // Act
+      const result = await controller.getLinkedEmployees(id);
+
+      // Assert
+      expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(
+        id,
+        {
+          page: 1,
+          limit: 10,
+        }
+      );
+      expect(PaginationUtils.validatePage).toHaveBeenCalledWith(1, 2, 10);
+      expect(PaginationUtils.createPaginatedResult).toHaveBeenCalledWith(
+        linkedEmployees.items,
+        1,
+        10,
+        2
+      );
+      expect(ResponseHandler.success).toHaveBeenCalledWith(
+        expect.any(Object),
+        "Colaboradores vinculados ao tipo de documento listados com sucesso"
+      );
+    });
+
+    it("deve retornar colaboradores vinculados com paginação personalizada", async () => {
+      // Arrange
+      const id = "test-id";
+      const documentType = { _id: id, name: "CPF" };
+      const linkedEmployees = {
+        items: [{ _id: "emp1", name: "João" }],
+        total: 5,
+      };
+
+      mockDocumentTypeService.findById.mockResolvedValue(documentType);
+      mockDocumentTypeService.getLinkedEmployees.mockResolvedValue(
+        linkedEmployees
+      );
+
+      // Act
+      await controller.getLinkedEmployees(id, 2, 3);
+
+      // Assert
+      expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(
+        id,
+        {
+          page: 2,
+          limit: 3,
+        }
+      );
+      expect(PaginationUtils.validatePage).toHaveBeenCalledWith(2, 5, 3);
+    });
+
+    it("deve lançar NotFound quando tipo de documento não existir", async () => {
+      // Arrange
+      const id = "inexistent-id";
+      mockDocumentTypeService.findById.mockResolvedValue(null);
+
+      // Act & Assert
+      await expect(controller.getLinkedEmployees(id)).rejects.toThrow(NotFound);
+      await expect(controller.getLinkedEmployees(id)).rejects.toThrow(
+        "Tipo de documento não encontrado"
+      );
+      expect(mockDocumentTypeService.findById).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeService.getLinkedEmployees).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar lista vazia quando não há colaboradores vinculados", async () => {
+      // Arrange
+      const id = "test-id";
+      const documentType = { _id: id, name: "CPF" };
+      const emptyResult = { items: [], total: 0 };
+
+      mockDocumentTypeService.findById.mockResolvedValue(documentType);
+      mockDocumentTypeService.getLinkedEmployees.mockResolvedValue(emptyResult);
+
+      // Act
+      const result = await controller.getLinkedEmployees(id);
+
+      // Assert
+      expect(mockDocumentTypeService.getLinkedEmployees).toHaveBeenCalledWith(
+        id,
+        {
+          page: 1,
+          limit: 10,
+        }
+      );
+      expect(PaginationUtils.createPaginatedResult).toHaveBeenCalledWith(
+        [],
+        1,
+        10,
+        0
+      );
     });
   });
 });

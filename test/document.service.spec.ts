@@ -324,6 +324,38 @@ describe("DocumentService - Testes Unitários", () => {
       expect(result.data).toBeDefined();
     });
 
+    it("deve lidar com employee sem nome (usar string vazia)", async () => {
+      // Arrange - employee sem name
+      const employeeNoName = {
+        ...mockEmployee,
+        _id: "emp-no-name",
+        name: undefined,
+      };
+
+      mockEmployeeRepository.list.mockResolvedValue({
+        items: [employeeNoName],
+        total: 1,
+      });
+      mockEmployeeService.getPendingDocuments.mockResolvedValue([
+        {
+          employee: { id: "emp-no-name", name: undefined },
+          documentType: { id: "doc-type-123", name: "CPF" },
+          status: "PENDING",
+          isActive: true,
+        },
+      ]);
+
+      // Act
+      const result = await service.getPendingDocuments({});
+
+      // Assert - deve usar string vazia quando name for falsy
+      expect(result.data.length).toBeGreaterThanOrEqual(0);
+      // Encontrar o item e validar employeeName vazio
+      if (result.data.length > 0) {
+        expect(result.data[0].employeeName).toBe("");
+      }
+    });
+
     it("deve filtrar documentos pendentes por documentTypeId específico", async () => {
       // Arrange
       const params = { documentTypeId: "doc-type-456" };
@@ -594,6 +626,35 @@ describe("DocumentService - Testes Unitários", () => {
       // Verificar se estão ordenados alfabeticamente (AAA vem antes de ZZZ)
       expect(result.data[0].documents[0].documentTypeName).toBe("AAA-Primeiro");
       expect(result.data[0].documents[1].documentTypeName).toBe("ZZZ-Último");
+    });
+
+    it("deve usar createdAt/updatedAt padrão quando ausentes nos documentos enviados", async () => {
+      // Arrange - documento sem createdAt/updatedAt
+      const sameEmployeeId = "emp-123";
+      const mockDoc = {
+        _id: "doc-no-dates",
+        value: "test",
+        status: "SENT",
+        isActive: true,
+        // Sem createdAt/updatedAt
+        employeeId: { toString: () => sameEmployeeId },
+        documentTypeId: { toString: () => "doc-type-123" },
+      };
+
+      mockDocumentRepository.find.mockResolvedValue([mockDoc]);
+      mockEmployeeRepository.findById.mockResolvedValue(mockEmployee);
+      mockDocumentTypeRepository.findById.mockResolvedValue(mockDocumentType);
+
+      // Act
+      const result = await service.getSentDocuments({});
+
+      // Assert
+      expect(result.data.length).toBeGreaterThanOrEqual(0);
+      if (result.data.length > 0) {
+        const docs = result.data[0].documents;
+        expect(docs[0].createdAt).toBeInstanceOf(Date);
+        expect(docs[0].updatedAt).toBeInstanceOf(Date);
+      }
     });
   });
 

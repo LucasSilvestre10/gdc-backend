@@ -1,410 +1,557 @@
-import { describe, it, beforeEach, expect, vi } from "vitest";
-import { DocumentTypeService } from "../src/services/DocumentTypeService";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { DocumentTypeService } from "../src/services/DocumentTypeService.js";
+import { DocumentTypeRepository } from "../src/repositories/DocumentTypeRepository.js";
+import { EmployeeRepository } from "../src/repositories/EmployeeRepository.js";
 import { BadRequest } from "@tsed/exceptions";
-import { ValidationError } from "../src/exceptions";
-
-// Helper para gerar ObjectIds válidos para testes
-const generateValidObjectId = () => {
-    return Math.random().toString(16).substring(2, 10).padStart(8, '0') + 
-           Math.random().toString(16).substring(2, 10).padStart(8, '0') + 
-           Math.random().toString(16).substring(2, 10).padStart(8, '0');
-};
+import { ValidationUtils } from "../src/utils/ValidationUtils.js";
+import { PaginationUtils } from "../src/utils/PaginationUtils.js";
 
 /**
- * Suite de testes para DocumentTypeService
- * O arquivo contém testes unitários que validam:
- * - criação de tipos de documento (validações e duplicidade)
- * - listagem com e sem filtros (construção de regex)
- * - delegação para métodos do repositório (findById / findByIds)
+ * Testes Unitários - DocumentTypeService
  *
- * Cada teste documenta: o que será feito (arrange/act) e o que é esperado (assert).
+ *
+ * Cobertura:
+ *  Construtor e injeção de dependências
+ *  create() - Criação com validações e padronização
+ *  list() - Listagem com filtros e paginação
+ *  findById() - Busca por ID com validação
+ *  findByIds() - Busca múltipla por IDs
+ *  update() - Atualização com validações de unicidade
+ *  delete() - Soft delete com validações
+ *  restore() - Restauração de tipos inativos
+ *  getLinkedEmployees() - Busca colaboradores vinculados
+ *  Tratamento de erros e validações
  */
 describe("DocumentTypeService", () => {
-    let service: DocumentTypeService;
-    let repo: any;
-    let employeeRepo: any;
+  let service: DocumentTypeService;
+  let mockDocumentTypeRepository: any;
+  let mockEmployeeRepository: any;
 
-    beforeEach(() => {
-        // Prepara mocks para o repository. Os testes irão controlar os retornos
-        // para verificar apenas a lógica do service (isolamento).
-        repo = {
-            findByName: vi.fn(),
-            create: vi.fn(),
-            list: vi.fn(),
-            findById: vi.fn(),
-            findByIds: vi.fn(),
-            update: vi.fn(),
-            softDelete: vi.fn(),
-            restore: vi.fn(),
-        };
+  beforeEach(() => {
+    // Mock do DocumentTypeRepository
+    mockDocumentTypeRepository = {
+      create: vi.fn(),
+      findByName: vi.fn(),
+      findById: vi.fn(),
+      findByIds: vi.fn(),
+      list: vi.fn(),
+      update: vi.fn(),
+      softDelete: vi.fn(),
+      restore: vi.fn(),
+    };
 
-        employeeRepo = {
-            findByDocumentType: vi.fn(),
-        };
+    // Mock do EmployeeRepository
+    mockEmployeeRepository = {
+      findByDocumentType: vi.fn(),
+    };
 
-        service = new DocumentTypeService(repo, employeeRepo);
+    // Mock das validações e utils
+    vi.spyOn(ValidationUtils, "validateObjectId").mockImplementation(
+      () => "valid-id"
+    );
+    vi.spyOn(PaginationUtils, "validatePage").mockImplementation(() => {});
+
+    // Cria instância do service com injeção de dependência via Object.defineProperty
+    service = new DocumentTypeService(
+      mockDocumentTypeRepository,
+      mockEmployeeRepository
+    );
+
+    // Injeta os mocks via Object.defineProperty para simular o @Inject
+    Object.defineProperty(service, "documentTypeRepository", {
+      value: mockDocumentTypeRepository,
+      writable: true,
     });
 
-    describe("create", () => {
-        it("cria um tipo de documento com dados válidos (trim aplicado)", async () => {
-            // O que será feito:
-            // - chamar service.create com name e description contendo espaços
-            // - repo.findByName retorna null (não existe duplicata)
-            // - repo.create retorna o objeto criado
-            //
-            // O que é esperado:
-            // - o nome passado ao repo.findByName deve estar "trimado"
-            // - o objeto enviado ao repo.create deve conter name e description trimados
-            // - o resultado deve ser o objeto criado pelo repo
-            const dto = { name: "  CPF  ", description: "  Documento de identificação  " };
-            repo.findByName.mockResolvedValue(null);
-            const created = { _id: "1", name: "CPF", description: "Documento de identificação" };
-            repo.create.mockResolvedValue(created);
+    Object.defineProperty(service, "employeeRepository", {
+      value: mockEmployeeRepository,
+      writable: true,
+    });
+  });
 
-            const result = await service.create(dto);
+  describe("create", () => {
+    it("cria um tipo de documento com dados válidos (trim aplicado)", async () => {
+      // Arrange: dados de entrada com espaços
+      const inputDto = {
+        name: "  CPF  ",
+        description: "  Cadastro de Pessoa Física  ",
+      };
 
-            expect(repo.findByName).toHaveBeenCalledWith("CPF");
-            expect(repo.create).toHaveBeenCalledWith({
-                name: "CPF",
-                description: "Documento de identificação",
-            });
-            expect(result).toEqual(created);
-        });
+      const expectedResult = {
+        _id: "generated-id",
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+        isActive: true,
+      };
 
-        it("lança BadRequest quando name está ausente ou vazio", async () => {
-            // O que será feito:
-            // - chamar service.create com name vazio (após trim)
-            //
-            // O que é esperado:
-            // - lançar BadRequest com mensagem "Name is required"
-            await expect(service.create({ name: "   " })).rejects.toThrow(BadRequest);
-            await expect(service.create({ name: "   " })).rejects.toThrow("Name is required");
-        });
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null); // Não existe duplicata
+      mockDocumentTypeRepository.create.mockResolvedValue(expectedResult);
 
-        it("lança BadRequest quando já existe tipo com mesmo nome (case-insensitive)", async () => {
-            // O que será feito:
-            // - repo.findByName retorna um tipo existente
-            // - chamar service.create com nome em diferente case
-            //
-            // O que é esperado:
-            // - lançar BadRequest informando que já existe tipo com mesmo nome
-            repo.findByName.mockResolvedValue({ _id: "existing", name: "CPF" });
-            await expect(service.create({ name: "cpf" })).rejects.toThrow(BadRequest);
-            await expect(service.create({ name: "cpf" })).rejects.toThrow(
-                "Document type with this name already exists"
-            );
-        });
+      // Act
+      const result = await service.create(inputDto);
+
+      // Assert: verifica se nome foi padronizado para uppercase e trim aplicado
+      expect(mockDocumentTypeRepository.findByName).toHaveBeenCalledWith("CPF");
+      expect(mockDocumentTypeRepository.create).toHaveBeenCalledWith({
+        name: "CPF",
+        description: "Cadastro de Pessoa Física",
+      });
+      expect(result).toEqual(expectedResult);
     });
 
-    describe("list", () => {
-        it("lista sem filtros usando filtro vazio e repassa opts", async () => {
-            // O que será feito:
-            // - repo.list retorna um resultado simulado
-            // - chamar service.list com opts de paginação
-            //
-            // O que é esperado:
-            // - repo.list deve ser chamado com filtro vazio e mesmas opts
-            // - retornar o resultado do repo
-            const mockResult = { items: [{ name: "A" }], total: 1 };
-            repo.list.mockResolvedValue(mockResult);
+    it("lança BadRequest quando name está ausente ou vazio", async () => {
+      // Arrange: casos de nome inválido
+      const invalidCases = [
+        { name: "" },
+        { name: "   " },
+        { name: null as any },
+        { name: undefined as any },
+        {}, // sem name
+      ];
 
-            const result = await service.list({}, { page: 2, limit: 5 });
+      // Act & Assert: testa cada caso inválido
+      for (const invalidDto of invalidCases) {
+        await expect(service.create(invalidDto as any)).rejects.toThrow(
+          "Name is required"
+        );
+      }
 
-            expect(repo.list).toHaveBeenCalledWith({}, { page: 2, limit: 5 });
-            expect(result).toEqual(mockResult);
-        });
-
-        it("constrói regex case-insensitive quando name for fornecido", async () => {
-            // O que será feito:
-            // - chamar service.list com um filtro name simples
-            // - repo.list será espiado para capturar o filtro construído
-            //
-            // O que é esperado:
-            // - o filtro enviado ao repo deve conter uma RegExp case-insensitive
-            const mockResult = { items: [], total: 0 };
-            repo.list.mockResolvedValue(mockResult);
-
-            const result = await service.list({ name: "cpf" }, {});
-
-            expect(repo.list).toHaveBeenCalledWith({ name: "cpf" }, {});
-            expect(result).toEqual(mockResult);
-        });
+      // Verifica que repository não foi chamado
+      expect(mockDocumentTypeRepository.findByName).not.toHaveBeenCalled();
+      expect(mockDocumentTypeRepository.create).not.toHaveBeenCalled();
     });
 
-    describe("findById / findByIds", () => {
-        it("delegates findById to repository", async () => {
-            // O que será feito:
-            // - repo.findById retorna um item
-            // - chamar service.findById com id
-            //
-            // O que é esperado:
-            // - service deve delegar a chamada ao repo e retornar o mesmo item
-            const validId = generateValidObjectId();
-            const item = { _id: validId, name: "CPF" };
-            repo.findById.mockResolvedValue(item);
+    it("lança BadRequest quando já existe tipo com mesmo nome (case-insensitive)", async () => {
+      // Arrange: tipo existente com mesmo nome
+      const inputDto = { name: "cpf" };
+      const existingType = { _id: "existing-id", name: "CPF" };
 
-            const result = await service.findById(validId);
+      mockDocumentTypeRepository.findByName.mockResolvedValue(existingType);
 
-            expect(repo.findById).toHaveBeenCalledWith(validId);
-            expect(result).toEqual(item);
-        });
+      // Act & Assert
+      await expect(service.create(inputDto)).rejects.toThrow(
+        "Document type with this name already exists"
+      );
 
-        it("retorna [] quando findByIds recebe array vazio", async () => {
-            // O que será feito:
-            // - chamar service.findByIds com array vazio
-            //
-            // O que é esperado:
-            // - não deve chamar repo.findByIds e retornar array vazio imediatamente
-            const result = await service.findByIds([]);
-            expect(result).toEqual([]);
-            expect(repo.findByIds).not.toHaveBeenCalled();
-        });
-
-        it("delegates findByIds to repository quando ids presentes", async () => {
-            // O que será feito:
-            // - repo.findByIds retorna uma lista de tipos
-            // - chamar service.findByIds com ids válidos
-            //
-            // O que é esperado:
-            // - service deve delegar a chamada ao repo e retornar os items
-            const validId1 = generateValidObjectId();
-            const validId2 = generateValidObjectId();
-            const ids = [validId1, validId2];
-            const items = [{ _id: validId1, name: "A" }, { _id: validId2, name: "B" }];
-            repo.findByIds.mockResolvedValue(items);
-
-            const result = await service.findByIds(ids);
-
-            expect(repo.findByIds).toHaveBeenCalledWith(ids);
-            expect(result).toEqual(items);
-        });
+      // Verifica que verificação foi feita
+      expect(mockDocumentTypeRepository.findByName).toHaveBeenCalledWith("CPF");
+      expect(mockDocumentTypeRepository.create).not.toHaveBeenCalled();
     });
 
-    describe("update", () => {
-        it("deve atualizar tipo de documento com sucesso", async () => {
-            // Arrange: dados de entrada e retornos esperados
-            const id = generateValidObjectId();
-            const dto = { name: "CPF Atualizado", description: "Nova descrição" };
-            const existingType = { _id: id, name: "CPF", description: "Descrição antiga" };
-            const updatedType = { _id: id, name: "CPF Atualizado", description: "Nova descrição" };
-            
-            repo.findById.mockResolvedValue(existingType);
-            repo.findByName.mockResolvedValue(null); // Nome não existe em outro registro
-            repo.update.mockResolvedValue(updatedType);
-            
-            // Act: chama o método do service
-            const result = await service.update(id, dto);
-            
-            // Assert: verifica se foi chamado corretamente
-            expect(repo.findById).toHaveBeenCalledWith(id);
-            expect(repo.findByName).toHaveBeenCalledWith("CPF Atualizado");
-            expect(repo.update).toHaveBeenCalledWith(id, {
-                name: "CPF Atualizado",
-                description: "Nova descrição"
-            });
-            expect(result).toEqual(updatedType);
-        });
+    it("deve usar string vazia quando description é undefined na criação", async () => {
+      // Arrange: DTO sem description
+      const inputDto = { name: "RG" };
 
-        it("deve retornar null se tipo de documento não existir", async () => {
-            // Arrange: simula tipo não encontrado
-            const id = generateValidObjectId();
-            const dto = { name: "CPF" };
-            
-            repo.findById.mockResolvedValue(null);
-            
-            // Act: chama o método do service
-            const result = await service.update(id, dto);
-            
-            // Assert: verifica que não tentou atualizar
-            expect(repo.findById).toHaveBeenCalledWith(id);
-            expect(repo.update).not.toHaveBeenCalled();
-            expect(result).toBeNull();
-        });
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue({
+        _id: "id",
+        name: "RG",
+      });
 
-        it("deve lançar erro se ID for inválido", async () => {
-            // Act & Assert: espera erro para ID inválido
-            await expect(service.update("", { name: "CPF" }))
-                .rejects.toThrow(ValidationError);
-            await expect(service.update("   ", { name: "CPF" }))
-                .rejects.toThrow(ValidationError);
-        });
+      // Act
+      await service.create(inputDto);
 
-        it("deve lançar erro se nome já existir em outro registro", async () => {
-            // Arrange: simula nome duplicado
-            const id = generateValidObjectId();
-            const dto = { name: "RG" };
-            const existingType = { _id: id, name: "CPF" };
-            const duplicateType = { _id: generateValidObjectId(), name: "RG" };
-            
-            repo.findById.mockResolvedValue(existingType);
-            repo.findByName.mockResolvedValue(duplicateType);
-            
-            // Act & Assert: espera erro por nome duplicado
-            await expect(service.update(id, dto))
-                .rejects.toThrow("Document type with this name already exists");
-        });
+      // Assert: description deve ser string vazia
+      expect(mockDocumentTypeRepository.create).toHaveBeenCalledWith({
+        name: "RG",
+        description: "",
+      });
+    });
+  });
 
-        it("deve permitir atualizar mesmo nome do registro atual", async () => {
-            // Arrange: simula atualização do mesmo nome
-            const id = generateValidObjectId();
-            const dto = { name: "CPF", description: "Nova descrição" };
-            const existingType = { _id: id, name: "CPF", description: "Antiga" };
-            const sameNameType = { _id: id, name: "CPF" }; // Mesmo ID
-            const updatedType = { _id: id, name: "CPF", description: "Nova descrição" };
-            
-            repo.findById.mockResolvedValue(existingType);
-            repo.findByName.mockResolvedValue(sameNameType);
-            repo.update.mockResolvedValue(updatedType);
-            
-            // Act: chama o método do service
-            const result = await service.update(id, dto);
-            
-            // Assert: deve permitir a atualização
-            expect(result).toEqual(updatedType);
-        });
+  describe("list", () => {
+    it("lista sem filtros usando filtro vazio e repassa opts", async () => {
+      // Arrange
+      const expectedResult = {
+        items: [{ _id: "id1", name: "CPF" }],
+        total: 1,
+      };
 
-        it("deve retornar tipo existente se não houver dados para atualizar", async () => {
-            // Arrange: DTO vazio
-            const id = generateValidObjectId();
-            const dto = {};
-            const existingType = { _id: id, name: "CPF" };
-            
-            repo.findById.mockResolvedValue(existingType);
-            
-            // Act: chama o método do service
-            const result = await service.update(id, dto);
-            
-            // Assert: deve retornar o tipo existente sem chamar update
-            expect(repo.update).not.toHaveBeenCalled();
-            expect(result).toEqual(existingType);
-        });
+      mockDocumentTypeRepository.list.mockResolvedValue(expectedResult);
+
+      // Act: sem parâmetros
+      const result = await service.list();
+
+      // Assert
+      expect(mockDocumentTypeRepository.list).toHaveBeenCalledWith({}, {});
+      expect(result).toEqual(expectedResult);
     });
 
-    describe("delete", () => {
-        it("deve fazer soft delete de tipo de documento com sucesso", async () => {
-            // Arrange: dados de entrada e retorno esperado
-            const id = generateValidObjectId();
-            const existingType = { _id: id, name: "CPF", isActive: true };
-            const deletedType = { _id: id, name: "CPF", isActive: false, deletedAt: new Date() };
-            
-            repo.findById.mockResolvedValue(existingType);
-            repo.softDelete.mockResolvedValue(deletedType);
-            
-            // Act: chama o método do service
-            const result = await service.delete(id);
-            
-            // Assert: verifica se foi chamado corretamente
-            expect(repo.findById).toHaveBeenCalledWith(id);
-            expect(repo.softDelete).toHaveBeenCalledWith(id);
-            expect(result).toEqual(deletedType);
-        });
+    it("constrói regex case-insensitive quando name for fornecido", async () => {
+      // Arrange
+      const filter = { name: "CPF", status: "active" as const };
+      const opts = { page: 2, limit: 5 };
 
-        it("deve retornar null se tipo de documento não existir", async () => {
-            // Arrange: simula tipo não encontrado
-            const id = generateValidObjectId();
-            
-            repo.findById.mockResolvedValue(null);
-            
-            // Act: chama o método do service
-            const result = await service.delete(id);
-            
-            // Assert: verifica que não tentou deletar
-            expect(repo.findById).toHaveBeenCalledWith(id);
-            expect(repo.softDelete).not.toHaveBeenCalled();
-            expect(result).toBeNull();
-        });
+      mockDocumentTypeRepository.list.mockResolvedValue({
+        items: [],
+        total: 0,
+      });
 
-        it("deve lançar erro se ID for inválido", async () => {
-            // Act & Assert: espera erro para ID inválido
-            await expect(service.delete(""))
-                .rejects.toThrow(ValidationError);
-            await expect(service.delete("   "))
-                .rejects.toThrow(ValidationError);
-        });
+      // Act
+      await service.list(filter, opts);
+
+      // Assert: repassa filtros e opções direto para repository
+      expect(mockDocumentTypeRepository.list).toHaveBeenCalledWith(
+        filter,
+        opts
+      );
+    });
+  });
+
+  describe("findById / findByIds", () => {
+    it("delegates findById to repository", async () => {
+      // Arrange
+      const id = "document-type-id";
+      const expectedResult = { _id: id, name: "CPF" };
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await service.findById(id);
+
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(id);
+      expect(result).toEqual(expectedResult);
     });
 
-    describe("restore", () => {
-        it("deve restaurar tipo de documento com sucesso", async () => {
-            // Arrange: dados de entrada e retorno esperado
-            const id = generateValidObjectId();
-            const restoredType = { _id: id, name: "CPF", isActive: true, deletedAt: null };
-            
-            repo.restore.mockResolvedValue(restoredType);
-            
-            // Act: chama o método do service
-            const result = await service.restore(id);
-            
-            // Assert: verifica se foi chamado corretamente
-            expect(repo.restore).toHaveBeenCalledWith(id);
-            expect(result).toEqual(restoredType);
-        });
+    it("retorna [] quando findByIds recebe array vazio", async () => {
+      // Act & Assert: testa diferentes arrays vazios
+      expect(await service.findByIds([])).toEqual([]);
+      expect(await service.findByIds(null as any)).toEqual([]);
+      expect(await service.findByIds(undefined as any)).toEqual([]);
 
-        it("deve retornar null se tipo de documento não existir", async () => {
-            // Arrange: simula tipo não encontrado
-            const id = generateValidObjectId();
-            
-            repo.restore.mockResolvedValue(null);
-            
-            // Act: chama o método do service
-            const result = await service.restore(id);
-            
-            // Assert: verifica o resultado
-            expect(repo.restore).toHaveBeenCalledWith(id);
-            expect(result).toBeNull();
-        });
-
-        it("deve lançar erro se ID for inválido", async () => {
-            // Act & Assert: espera erro para ID inválido
-            await expect(service.restore(""))
-                .rejects.toThrow(ValidationError);
-            await expect(service.restore("   "))
-                .rejects.toThrow(ValidationError);
-        });
+      // Verifica que repository não foi chamado
+      expect(mockDocumentTypeRepository.findByIds).not.toHaveBeenCalled();
     });
 
-    describe("getLinkedEmployees", () => {
-        it("deve retornar colaboradores vinculados ao tipo de documento", async () => {
-            // Arrange: dados de entrada e retorno esperado
-            const documentTypeId = generateValidObjectId();
-            const documentType = { _id: documentTypeId, name: "CPF" };
-            const linkedEmployees = {
-                items: [
-                    { _id: generateValidObjectId(), name: "João Silva", requiredDocumentTypes: [documentTypeId] }
-                ],
-                total: 1
-            };
-            
-            repo.findById.mockResolvedValue(documentType);
-            employeeRepo.findByDocumentType.mockResolvedValue(linkedEmployees);
-            
-            // Act: chama o método do service
-            const result = await service.getLinkedEmployees(documentTypeId);
-            
-            // Assert: verifica se foi chamado corretamente
-            expect(repo.findById).toHaveBeenCalledWith(documentTypeId);
-            expect(employeeRepo.findByDocumentType).toHaveBeenCalledWith(documentTypeId, { page: 1, limit: 10 });
-            expect(result).toEqual(linkedEmployees);
-        });
+    it("delegates findByIds to repository quando ids presentes", async () => {
+      // Arrange
+      const ids = ["id1", "id2"];
+      const expectedResult = [
+        { _id: "id1", name: "CPF" },
+        { _id: "id2", name: "RG" },
+      ];
 
-        it("deve retornar array vazio se tipo de documento não existir", async () => {
-            // Arrange: simula tipo não encontrado
-            const documentTypeId = generateValidObjectId();
-            
-            repo.findById.mockResolvedValue(null);
-            
-            // Act: chama o método do service
-            const result = await service.getLinkedEmployees(documentTypeId);
-            
-            // Assert: verifica o resultado
-            expect(repo.findById).toHaveBeenCalledWith(documentTypeId);
-            expect(employeeRepo.findByDocumentType).not.toHaveBeenCalled();
-            expect(result).toEqual({ items: [], total: 0 });
-        });
+      mockDocumentTypeRepository.findByIds.mockResolvedValue(expectedResult);
 
-        it("deve lançar erro se ID for inválido", async () => {
-            // Act & Assert: espera erro para ID inválido
-            await expect(service.getLinkedEmployees(""))
-                .rejects.toThrow(ValidationError);
-        });
+      // Act
+      const result = await service.findByIds(ids);
+
+      // Assert
+      expect(mockDocumentTypeRepository.findByIds).toHaveBeenCalledWith(ids);
+      expect(result).toEqual(expectedResult);
     });
+  });
+
+  describe("update", () => {
+    it("deve atualizar tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF", description: "Antigo" };
+      const updateDto = {
+        name: "cpf atualizado",
+        description: "Nova descrição",
+      };
+      const expectedResult = {
+        _id: id,
+        name: "CPF ATUALIZADO",
+        description: "Nova descrição",
+      };
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null); // Não há duplicata
+      mockDocumentTypeRepository.update.mockResolvedValue(expectedResult);
+
+      // Act
+      const result = await service.update(id, updateDto);
+
+      // Assert: verifica padronização e validações
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.findByName).toHaveBeenCalledWith(
+        "CPF ATUALIZADO"
+      );
+      expect(mockDocumentTypeRepository.update).toHaveBeenCalledWith(id, {
+        name: "CPF ATUALIZADO",
+        description: "Nova descrição",
+      });
+      expect(result).toEqual(expectedResult);
+    });
+
+    it("deve retornar null se tipo de documento não existir", async () => {
+      // Arrange
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
+
+      // Act
+      const result = await service.update("non-existent-id", { name: "Test" });
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDocumentTypeRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("deve lançar erro se ID for inválido", async () => {
+      // Arrange: mock do ValidationUtils para lançar erro
+      (ValidationUtils.validateObjectId as any).mockImplementation(() => {
+        throw new BadRequest("ID é obrigatório e deve ser um ObjectId válido");
+      });
+
+      // Act & Assert
+      await expect(
+        service.update("invalid-id", { name: "Test" })
+      ).rejects.toThrow("ID é obrigatório e deve ser um ObjectId válido");
+    });
+
+    it("deve lançar erro se nome já existir em outro registro", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF" };
+      const duplicateType = { _id: "other-id", name: "RG NOVO" }; // Outro registro com nome duplicado
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.findByName.mockResolvedValue(duplicateType);
+
+      // Act & Assert
+      await expect(service.update(id, { name: "rg novo" })).rejects.toThrow(
+        "Document type with this name already exists"
+      );
+    });
+
+    it("deve permitir atualizar mesmo nome do registro atual", async () => {
+      // Arrange: atualiza o mesmo nome (case insensitive)
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF" };
+      const updateDto = { name: "cpf", description: "Nova descrição" };
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.update.mockResolvedValue({
+        ...existingType,
+        ...updateDto,
+      });
+
+      // Act
+      const result = await service.update(id, updateDto);
+
+      // Assert: não deve verificar duplicata pois é o mesmo nome
+      expect(mockDocumentTypeRepository.findByName).not.toHaveBeenCalled();
+      expect(mockDocumentTypeRepository.update).toHaveBeenCalledWith(id, {
+        name: "CPF",
+        description: "Nova descrição",
+      });
+    });
+
+    it("deve retornar tipo existente se não houver dados para atualizar", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF" };
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+
+      // Act: dados vazios para atualização
+      const result = await service.update(id, {});
+
+      // Assert: retorna existente sem chamar update
+      expect(result).toEqual(existingType);
+      expect(mockDocumentTypeRepository.update).not.toHaveBeenCalled();
+    });
+
+    it("deve tratar description undefined no update corretamente", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF" };
+      const updateDto = { description: "" }; // String vazia em vez de undefined
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.update.mockResolvedValue(existingType);
+
+      // Act
+      await service.update(id, updateDto);
+
+      // Assert: description vazia deve ser mantida como string vazia
+      expect(mockDocumentTypeRepository.update).toHaveBeenCalledWith(id, {
+        description: "",
+      });
+    });
+
+    it("deve tratar description undefined ignorando o campo", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF" };
+      const updateDto = { description: undefined }; // undefined deve ser ignorado
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.update.mockResolvedValue(existingType);
+
+      // Act
+      const result = await service.update(id, updateDto);
+
+      // Assert: nenhum update deve ser chamado pois description undefined é ignorada
+      expect(mockDocumentTypeRepository.update).not.toHaveBeenCalled();
+      expect(result).toBe(existingType); // Retorna o existingType sem atualizar
+    });
+  });
+
+  describe("delete", () => {
+    it("deve fazer soft delete de tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const existingType = { _id: id, name: "CPF", isActive: true };
+      const deletedType = {
+        ...existingType,
+        isActive: false,
+        deletedAt: new Date(),
+      };
+
+      mockDocumentTypeRepository.findById.mockResolvedValue(existingType);
+      mockDocumentTypeRepository.softDelete.mockResolvedValue(deletedType);
+
+      // Act
+      const result = await service.delete(id);
+
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.softDelete).toHaveBeenCalledWith(id);
+      expect(result).toEqual(deletedType);
+    });
+
+    it("deve retornar null se tipo de documento não existir", async () => {
+      // Arrange
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
+
+      // Act
+      const result = await service.delete("non-existent-id");
+
+      // Assert
+      expect(result).toBeNull();
+      expect(mockDocumentTypeRepository.softDelete).not.toHaveBeenCalled();
+    });
+
+    it("deve lançar erro se ID for inválido", async () => {
+      // Arrange
+      (ValidationUtils.validateObjectId as any).mockImplementation(() => {
+        throw new BadRequest("ID é obrigatório e deve ser um ObjectId válido");
+      });
+
+      // Act & Assert
+      await expect(service.delete("invalid-id")).rejects.toThrow(
+        "ID é obrigatório e deve ser um ObjectId válido"
+      );
+    });
+  });
+
+  describe("restore", () => {
+    it("deve restaurar tipo de documento com sucesso", async () => {
+      // Arrange
+      const id = "test-id";
+      const restoredType = {
+        _id: id,
+        name: "CPF",
+        isActive: true,
+        deletedAt: null,
+      };
+
+      mockDocumentTypeRepository.restore.mockResolvedValue(restoredType);
+
+      // Act
+      const result = await service.restore(id);
+
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(id);
+      expect(mockDocumentTypeRepository.restore).toHaveBeenCalledWith(id);
+      expect(result).toEqual(restoredType);
+    });
+
+    it("deve retornar null se tipo de documento não existir", async () => {
+      // Arrange
+      mockDocumentTypeRepository.restore.mockResolvedValue(null);
+
+      // Act
+      const result = await service.restore("non-existent-id");
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    it("deve lançar erro se ID for inválido", async () => {
+      // Arrange
+      (ValidationUtils.validateObjectId as any).mockImplementation(() => {
+        throw new BadRequest("ID é obrigatório e deve ser um ObjectId válido");
+      });
+
+      // Act & Assert
+      await expect(service.restore("invalid-id")).rejects.toThrow(
+        "ID é obrigatório e deve ser um ObjectId válido"
+      );
+    });
+  });
+
+  describe("getLinkedEmployees", () => {
+    it("deve retornar colaboradores vinculados ao tipo de documento", async () => {
+      // Arrange
+      const documentTypeId = "doc-type-id";
+      const options = { page: 1, limit: 10 };
+      const documentType = { _id: documentTypeId, name: "CPF" };
+      const employeesResult = {
+        items: [
+          { _id: "emp1", name: "João Silva" },
+          { _id: "emp2", name: "Maria Santos" },
+        ],
+        total: 2,
+      };
+
+      // Mock do findById através do service (que chamará repository)
+      mockDocumentTypeRepository.findById.mockResolvedValue(documentType);
+      mockEmployeeRepository.findByDocumentType.mockResolvedValue(
+        employeesResult
+      );
+
+      // Act
+      const result = await service.getLinkedEmployees(documentTypeId, options);
+
+      // Assert
+      expect(ValidationUtils.validateObjectId).toHaveBeenCalledWith(
+        documentTypeId
+      );
+      expect(mockDocumentTypeRepository.findById).toHaveBeenCalledWith(
+        documentTypeId
+      );
+      expect(mockEmployeeRepository.findByDocumentType).toHaveBeenCalledWith(
+        documentTypeId,
+        options
+      );
+      expect(PaginationUtils.validatePage).toHaveBeenCalledWith(
+        options.page,
+        employeesResult.total,
+        options.limit
+      );
+      expect(result).toEqual(employeesResult);
+    });
+
+    it("deve retornar array vazio se tipo de documento não existir", async () => {
+      // Arrange
+      mockDocumentTypeRepository.findById.mockResolvedValue(null);
+
+      // Act
+      const result = await service.getLinkedEmployees("non-existent-id");
+
+      // Assert
+      expect(result).toEqual({ items: [], total: 0 });
+      expect(mockEmployeeRepository.findByDocumentType).not.toHaveBeenCalled();
+      expect(PaginationUtils.validatePage).not.toHaveBeenCalled();
+    });
+
+    it("deve lançar erro se ID for inválido", async () => {
+      // Arrange
+      (ValidationUtils.validateObjectId as any).mockImplementation(() => {
+        throw new BadRequest("ID é obrigatório e deve ser um ObjectId válido");
+      });
+
+      // Act & Assert
+      await expect(service.getLinkedEmployees("invalid-id")).rejects.toThrow(
+        "ID é obrigatório e deve ser um ObjectId válido"
+      );
+    });
+  });
 });

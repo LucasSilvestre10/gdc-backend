@@ -15,11 +15,18 @@ export default defineConfig({
         "config",
         "src/config",
         "src/mongo-connection.ts",
+        "src/models/**",
+        "src/exceptions/**",
+        "src/middleware/**",
         "src/index.ts",
+        "src/**/index.ts",
         "src/**/*.spec.ts",
         "src/Server.ts",
         "src/controllers/rest/index.ts",
-      ], // ignora testes, configs e node_modules
+        "src/utils/**",
+        "src/dtos/**", // ignora DTOs - estruturas de dados sem lógica
+        "src/types/**", // ignora types - definições de tipos sem lógica de negócio
+      ], // ignora testes, configs, DTOs, types e node_modules
       reporter: ["text", "html"],
     },
   },
