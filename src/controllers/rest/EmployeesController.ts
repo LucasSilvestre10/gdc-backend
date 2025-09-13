@@ -5,6 +5,7 @@ import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { ResponseHandler } from "../../middleware/ResponseHandler";
+import { MappingUtils } from "../../utils/MappingUtils";
 import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -13,7 +14,7 @@ import {
   PaginatedResponseDto,
   StatusFilterDto,
 } from "../../dtos/employeeDTO";
-import { EmployeeSearchResponseDto } from "../../dtos/enrichedEmployeeDTO";
+import { EmployeeSearchResponseDto } from "../../dtos/employeeResponseDTO";
 import { EmployeeService } from "../../services/EmployeeService";
 
 /**
@@ -119,7 +120,7 @@ export class EmployeesController {
   @Description(
     '"Query" Busca colaboradores por nome (case-insensitive) ou CPF (busca exata). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).'
   )
-  @Returns(200, PaginatedResponseDto)
+  @Returns(200, Object)
   async searchEmployees(
     @QueryParams("query") query: string,
     @QueryParams() filters: StatusFilterDto
@@ -138,7 +139,9 @@ export class EmployeesController {
         isActive: emp.isActive,
         createdAt: emp.createdAt ?? new Date(),
         updatedAt: emp.updatedAt ?? new Date(),
-        documentationSummary: emp.documentationSummary,
+        documentationSummary: MappingUtils.toDocumentationSummaryDto(
+          emp.documentationSummary
+        ),
       })),
       pagination: {
         page: filters.page || 1,

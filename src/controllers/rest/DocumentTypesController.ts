@@ -3,17 +3,18 @@ import { Get, Post, Put, Delete } from "@tsed/schema";
 import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description, Example } from "@tsed/schema";
 import { Inject } from "@tsed/di";
-import { BadRequest, NotFound, Conflict, UnprocessableEntity } from "@tsed/exceptions";
+import { NotFound } from "@tsed/exceptions";
 import { ResponseHandler } from "../../middleware/ResponseHandler";
-import { 
-  CreateDocumentTypeDto, 
-  UpdateDocumentTypeDto 
+import { PaginationUtils } from "../../utils/PaginationUtils";
+import {
+  CreateDocumentTypeDto,
+  UpdateDocumentTypeDto,
 } from "../../dtos/documentTypeDTO.js";
 import { DocumentTypeService } from "../../services/DocumentTypeService.js";
 
 /**
  * Controller responsável por gerenciar os tipos de documento.
- * 
+ *
  * Implementa operações CRUD completas seguindo padrões REST:
  * - POST /document-types: Cria um novo tipo de documento
  * - GET /document-types: Lista todos os tipos com paginação e filtros
@@ -22,7 +23,7 @@ import { DocumentTypeService } from "../../services/DocumentTypeService.js";
  * - DELETE /document-types/:id: Remove um tipo (soft delete)
  * - POST /document-types/:id/restore: Restaura um tipo removido
  * - GET /document-types/:id/employees: Lista colaboradores vinculados
- * 
+ *
  * @route /document-types
  * @controller DocumentTypesController
  * @version 1.0.0
@@ -31,11 +32,9 @@ import { DocumentTypeService } from "../../services/DocumentTypeService.js";
 export class DocumentTypesController {
   private static readonly DEFAULT_PAGE = 1;
   private static readonly DEFAULT_LIMIT = 10;
-  private static readonly DEFAULT_STATUS = 'active';
+  private static readonly DEFAULT_STATUS = "active";
 
-  constructor(
-    @Inject() private documentTypeService: DocumentTypeService
-  ) {}
+  constructor(@Inject() private documentTypeService: DocumentTypeService) {}
 
   /**
    * Cria um novo tipo de documento.
@@ -52,14 +51,15 @@ export class DocumentTypesController {
   @Returns(409, Object)
   @Example({
     name: "CPF",
-    description: "Cadastro de Pessoa Física"
+    description: "Cadastro de Pessoa Física",
   })
   async create(@BodyParams() createDto: CreateDocumentTypeDto) {
     const documentType = await this.documentTypeService.create(createDto);
-    return ResponseHandler.success(documentType, "Tipo de documento criado com sucesso");
+    return ResponseHandler.success(
+      documentType,
+      "Tipo de documento criado com sucesso"
+    );
   }
-
-
 
   /**
    * Lista todos os tipos de documento com paginação e filtros.
@@ -72,7 +72,9 @@ export class DocumentTypesController {
    */
   @Get("/")
   @Summary("Listar tipos de documento")
-  @Description("Lista tipos de documento com filtros: name (busca parcial), status (active/inactive/all). Por padrão retorna apenas registros ativos.")
+  @Description(
+    "Lista tipos de documento com filtros: name (busca parcial), status (active/inactive/all). Por padrão retorna apenas registros ativos."
+  )
   @Returns(200, Array)
   @Example({
     success: true,
@@ -83,42 +85,45 @@ export class DocumentTypesController {
         description: "Cadastro de Pessoa Física",
         isActive: true,
         createdAt: "2023-07-21T10:30:00.000Z",
-        updatedAt: "2023-07-21T10:30:00.000Z"
-      }
+        updatedAt: "2023-07-21T10:30:00.000Z",
+      },
     ],
     pagination: {
       page: 1,
       limit: 10,
       total: 1,
-      totalPages: 1
-    }
+      totalPages: 1,
+    },
   })
   async list(
     @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT,
     @QueryParams("name") name?: string,
-    @QueryParams("status") status?: 'active' | 'inactive' | 'all'
+    @QueryParams("status") status?: "active" | "inactive" | "all"
   ) {
-    const filters = { 
-      name, 
-      status: status || DocumentTypesController.DEFAULT_STATUS 
+    const filters = {
+      name,
+      status: status || DocumentTypesController.DEFAULT_STATUS,
     };
-    const options = { 
-      page: page || DocumentTypesController.DEFAULT_PAGE, 
-      limit: limit || DocumentTypesController.DEFAULT_LIMIT 
+    const options = {
+      page: page ?? DocumentTypesController.DEFAULT_PAGE,
+      limit: limit ?? DocumentTypesController.DEFAULT_LIMIT,
     };
-    
+
     const result = await this.documentTypeService.list(filters, options);
-    
-    return ResponseHandler.success({
-      items: result.items,
-      pagination: {
-        page: options.page,
-        limit: options.limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / options.limit)
-      }
-    }, "Tipos de documento listados com sucesso");
+
+    // Validar paginação
+    PaginationUtils.validatePage(options.page, result.total, options.limit);
+
+    return ResponseHandler.success(
+      PaginationUtils.createPaginatedResult(
+        result.items,
+        options.page,
+        options.limit,
+        result.total
+      ),
+      "Tipos de documento listados com sucesso"
+    );
   }
 
   /**
@@ -139,9 +144,11 @@ export class DocumentTypesController {
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ResponseHandler.success(documentType, "Tipo de documento encontrado com sucesso");
+    return ResponseHandler.success(
+      documentType,
+      "Tipo de documento encontrado com sucesso"
+    );
   }
-
 
   /**
    * Atualiza dados de um tipo de documento.
@@ -161,7 +168,7 @@ export class DocumentTypesController {
   @Returns(409, Object)
   @Example({
     name: "RG",
-    description: "Registro Geral"
+    description: "Registro Geral",
   })
   async update(
     @PathParams("id") id: string,
@@ -171,7 +178,10 @@ export class DocumentTypesController {
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ResponseHandler.success(documentType, "Tipo de documento atualizado com sucesso");
+    return ResponseHandler.success(
+      documentType,
+      "Tipo de documento atualizado com sucesso"
+    );
   }
 
   /**
@@ -192,7 +202,10 @@ export class DocumentTypesController {
     if (!deleted) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ResponseHandler.success(deleted, "Tipo de documento removido com sucesso");
+    return ResponseHandler.success(
+      deleted,
+      "Tipo de documento removido com sucesso"
+    );
   }
 
   /**
@@ -213,7 +226,10 @@ export class DocumentTypesController {
     if (!restored) {
       throw new NotFound("Tipo de documento não encontrado");
     }
-    return ResponseHandler.success(restored, "Tipo de documento reativado com sucesso");
+    return ResponseHandler.success(
+      restored,
+      "Tipo de documento reativado com sucesso"
+    );
   }
 
   /**
@@ -225,11 +241,17 @@ export class DocumentTypesController {
    */
   @Get("/:id/employees")
   @Summary("Listar colaboradores vinculados ao tipo de documento")
-  @Description("Retorna todos os colaboradores que têm este tipo de documento como obrigatório")
+  @Description(
+    "Retorna todos os colaboradores que têm este tipo de documento como obrigatório"
+  )
   @Returns(200, Array)
   @Returns(404, Object)
   @Returns(400, Object)
-  async getLinkedEmployees(@PathParams("id") id: string, @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE, @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT) {
+  async getLinkedEmployees(
+    @PathParams("id") id: string,
+    @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
+    @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT
+  ) {
     // Verificar se o tipo de documento existe
     const documentType = await this.documentTypeService.findById(id);
     if (!documentType) {
@@ -237,16 +259,22 @@ export class DocumentTypesController {
     }
 
     // Buscar colaboradores vinculados ao tipo de documento
-    const result = await this.documentTypeService.getLinkedEmployees(id, { page, limit });
-    
-    return ResponseHandler.success({
-      items: result.items,
-      pagination: {
+    const result = await this.documentTypeService.getLinkedEmployees(id, {
+      page,
+      limit,
+    });
+
+    // Validar paginação
+    PaginationUtils.validatePage(page, result.total, limit);
+
+    return ResponseHandler.success(
+      PaginationUtils.createPaginatedResult(
+        result.items,
         page,
         limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / limit)
-      }
-    }, "Colaboradores vinculados ao tipo de documento listados com sucesso");
+        result.total
+      ),
+      "Colaboradores vinculados ao tipo de documento listados com sucesso"
+    );
   }
 }
