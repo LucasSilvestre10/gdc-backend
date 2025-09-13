@@ -2,8 +2,11 @@ import { Injectable, Inject } from "@tsed/di";
 import { DocumentRepository } from "../repositories/DocumentRepository.js";
 import { DocumentTypeRepository } from "../repositories/index.js";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
-import { EmployeeService } from "./EmployeeService.js";
+import { EmployeeService } from "./EmployeeService";
 import { Document } from "../models/Document";
+import { Employee } from "../models/Employee";
+import { ValidationUtils } from "../utils/ValidationUtils";
+import { PaginationUtils } from "../utils/PaginationUtils";
 import {
   DOCUMENT_REPOSITORY_TOKEN,
   DOCUMENT_TYPE_REPOSITORY_TOKEN,
@@ -15,6 +18,11 @@ import {
   GroupedPendingEmployee,
   FlatPendingDocument,
 } from "../types/DocumentServiceTypes";
+
+// Interface para Employee com _id do Mongoose
+interface EmployeeWithId extends Employee {
+  _id: string | { toString(): string };
+}
 
 /**
  * Serviço de negócios para gerenciamento de documentos
@@ -65,6 +73,21 @@ export class DocumentService {
     // Extrair parâmetros com valores padrão seguros
     const { status = "all", documentTypeId } = params;
 
+    // Validar documentTypeId se fornecido
+    if (documentTypeId) {
+      ValidationUtils.validateObjectId(documentTypeId, "documentTypeId");
+
+      // Verificar se o tipo de documento existe
+      const documentType =
+        await this.documentTypeRepository.findById(documentTypeId);
+      if (!documentType) {
+        return {
+          data: [],
+          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+      }
+    }
+
     let { page = 1, limit = 10 } = params;
 
     // Sanitizar valores de paginação
@@ -72,7 +95,7 @@ export class DocumentService {
     limit = Math.min(Math.max(1, limit), 100);
 
     // ETAPA 1: Buscar colaboradores ativos
-    const employeeFilter: Record<string, unknown> = {
+    const employeeFilter: Record<string, boolean | Record<string, boolean>> = {
       isActive: { $ne: false },
     };
 
@@ -92,9 +115,11 @@ export class DocumentService {
     const allPendingDocuments: FlatPendingDocument[] = [];
 
     for (const employee of employeesData.items) {
-      const empId = (
-        employee as unknown as { _id: { toString(): string } }
-      )._id?.toString();
+      const employeeWithId = employee as EmployeeWithId;
+      const empId =
+        typeof employeeWithId._id === "string"
+          ? employeeWithId._id
+          : employeeWithId._id.toString();
       if (!empId) continue;
 
       try {
@@ -191,6 +216,10 @@ export class DocumentService {
 
     // ETAPA 6: Paginação
     const total = groupedData.length;
+
+    // Validar se a página solicitada existe
+    PaginationUtils.validatePage(page, total, limit);
+
     const skip = (page - 1) * limit;
     const paginatedData = groupedData.slice(skip, skip + limit);
     const totalPages = Math.ceil(total / limit);
