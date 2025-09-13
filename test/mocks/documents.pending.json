@@ -1,0 +1,36 @@
+{
+  "success": true,
+  "data": [
+    {
+      "employeeId": "68c101cbb740dd18300c30f3",
+      "employeeName": "Carlos Oliveira",
+      "documents": [
+        {
+          "documentTypeId": "68c0b12ee915e716f9c311f7",
+          "documentTypeName": "Carteira de Trabalho",
+          "status": "PENDING",
+          "active": true
+        },
+        {
+          "documentTypeId": "68c09eb89f7160b6bde944d2",
+          "documentTypeName": "CPF Atualizado",
+          "status": "PENDING",
+          "active": true
+        }
+      ]
+    },
+    {
+      "employeeId": "68c101bcb740dd18300c30ed",
+      "employeeName": "João Pedro",
+      "documents": [
+        {
+          "documentTypeId": "68c0b12ee915e716f9c311f7",
+          "documentTypeName": "Carteira de Trabalho",
+          "status": "PENDING",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 2, "totalPages": 1 }
+}

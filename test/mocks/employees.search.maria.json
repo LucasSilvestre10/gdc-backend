@@ -1,0 +1,16 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "68c101aeb740dd18300c30ea",
+      "name": "Maria Santos",
+      "document": "987.654.321-00"
+    },
+    {
+      "id": "68c24bc2c85e79937983a890",
+      "name": "Maria Silva",
+      "document": "123.456.789-00"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 2, "totalPages": 1 }
+}

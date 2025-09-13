@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": [
+    {
+      "employeeId": "68c24a4cc85e79937983a83d",
+      "employeeName": "João Silva",
+      "documents": [
+        {
+          "documentTypeId": "68c09eb89f7160b6bde944d2",
+          "documentTypeName": "CPF Atualizado",
+          "status": "SENT",
+          "value": "123.456.789-01",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 1, "totalPages": 1 }
+}

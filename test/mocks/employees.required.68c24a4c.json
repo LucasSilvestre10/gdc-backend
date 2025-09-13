@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": [
+    {
+      "documentTypeId": "68c09eb89f7160b6bde944d2",
+      "name": "CPF Atualizado",
+      "value": null,
+      "active": true
+    },
+    {
+      "documentTypeId": "68c0b12ee915e716f9c311f7",
+      "name": "Carteira de Trabalho",
+      "value": null,
+      "active": true
+    }
+  ]
+}

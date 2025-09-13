@@ -1,0 +1,21 @@
+﻿{
+    "success":  true,
+    "data":  {
+                 "employee":  {
+                                  "id":  "68c24a4cc85e79937983a83d",
+                                  "name":  "João Silva"
+                              },
+                 "documentationOverview":  {
+                                               "summary":  {
+                                                               "total":  0,
+                                                               "sent":  0,
+                                                               "pending":  0,
+                                                               "isComplete":  false,
+                                                               "lastUpdated":  "2025-09-13T20:08:31.414Z"
+                                                           },
+                                               "documents":  [
+
+                                                             ]
+                                           }
+             }
+}

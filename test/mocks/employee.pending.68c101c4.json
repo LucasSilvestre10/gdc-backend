@@ -1,0 +1,17 @@
+﻿{
+    "success":  true,
+    "message":  "Documentos pendentes listados com sucesso",
+    "data":  {
+                 "employee":  {
+                                  "id":  "68c101c4b740dd18300c30f0",
+                                  "name":  "Ana Silva"
+                              },
+                 "pendingDocuments":  {
+                                          "total":  0,
+                                          "documents":  [
+
+                                                        ]
+                                      }
+             },
+    "timestamp":  "2025-09-13T20:03:13.710Z"
+}

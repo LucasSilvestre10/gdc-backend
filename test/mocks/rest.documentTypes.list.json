@@ -1,0 +1,104 @@
+﻿{
+    "success":  true,
+    "message":  "Tipos de documento listados com sucesso",
+    "data":  {
+                 "items":  [
+                               {
+                                   "_id":  "68c09eb89f7160b6bde944d2",
+                                   "name":  "CPF Atualizado",
+                                   "description":  "CPF com descrição",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T21:40:08.318Z",
+                                   "updatedAt":  "2025-09-11T00:43:16.839Z",
+                                   "__v":  0,
+                                   "deletedAt":  null
+                               },
+                               {
+                                   "_id":  "68c0a1997d886b802d80219b",
+                                   "name":  "Passaporte",
+                                   "description":  "",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T21:52:25.746Z",
+                                   "updatedAt":  "2025-09-09T21:52:25.746Z",
+                                   "__v":  0
+                               },
+                               {
+                                   "_id":  "68c0a1e07d886b802d8021b2",
+                                   "name":  "RG",
+                                   "description":  "",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T21:53:36.796Z",
+                                   "updatedAt":  "2025-09-09T21:53:36.796Z",
+                                   "__v":  0
+                               },
+                               {
+                                   "_id":  "68c0a6bd9684f257b5f4e075",
+                                   "name":  "Teste Atualizado",
+                                   "description":  "Documento de teste para valida��o da API",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T22:14:21.899Z",
+                                   "updatedAt":  "2025-09-09T22:59:54.144Z",
+                                   "__v":  0
+                               },
+                               {
+                                   "_id":  "68c0a80d495d1e4c81f0a151",
+                                   "name":  "CNH",
+                                   "description":  "",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T22:19:57.605Z",
+                                   "updatedAt":  "2025-09-09T22:19:57.605Z",
+                                   "__v":  0
+                               },
+                               {
+                                   "_id":  "68c0b02f8dd443bfc5a44b75",
+                                   "name":  "raimundo",
+                                   "description":  "",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T22:54:39.792Z",
+                                   "updatedAt":  "2025-09-09T22:54:39.792Z"
+                               },
+                               {
+                                   "_id":  "68c0b12ee915e716f9c311f7",
+                                   "name":  "Carteira de Trabalho",
+                                   "description":  "Carteira de Trabalho e Previd�ncia Social",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T22:58:54.525Z",
+                                   "updatedAt":  "2025-09-09T22:58:54.525Z"
+                               },
+                               {
+                                   "_id":  "68c0b19fe915e716f9c31208",
+                                   "name":  "carro",
+                                   "description":  "",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T23:00:47.106Z",
+                                   "updatedAt":  "2025-09-10T21:52:18.285Z",
+                                   "deletedAt":  null
+                               },
+                               {
+                                   "_id":  "68c0b24f0529be855310c6ad",
+                                   "name":  "Reservista",
+                                   "description":  "Certificado de Reservista - Servi�o Militar",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-09T23:03:43.072Z",
+                                   "updatedAt":  "2025-09-09T23:03:55.877Z"
+                               },
+                               {
+                                   "_id":  "68c0e5717b5fb2e62325bd81",
+                                   "name":  "CPF",
+                                   "description":  "Cadastro de Pessoa Física",
+                                   "isActive":  true,
+                                   "createdAt":  "2025-09-10T02:41:53.472Z",
+                                   "updatedAt":  "2025-09-10T02:41:53.472Z"
+                               }
+                           ],
+                 "pagination":  {
+                                    "page":  1,
+                                    "limit":  10,
+                                    "total":  16,
+                                    "totalPages":  2,
+                                    "hasNextPage":  true,
+                                    "hasPreviousPage":  false
+                                }
+             },
+    "timestamp":  "2025-09-13T20:11:56.785Z"
+}
