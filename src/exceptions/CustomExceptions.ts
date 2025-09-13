@@ -6,7 +6,8 @@ import {
 } from "@tsed/exceptions";
 
 /**
- * Exceção para quando um colaborador não é encontrado
+ * Exceção lançada quando um colaborador não é encontrado.
+ * @param id ID do colaborador (opcional)
  */
 export class EmployeeNotFoundError extends NotFound {
   constructor(id?: string) {
@@ -20,17 +21,19 @@ export class EmployeeNotFoundError extends NotFound {
 }
 
 /**
- * Exceção para CPF duplicado
+ * Exceção lançada quando o CPF informado já está cadastrado.
+ * @param cpf CPF duplicado
  */
 export class DuplicateCpfError extends Conflict {
   constructor(cpf: string) {
-    super(`CPF '${cpf}' já está cadastrado no sistema`);
+    super(`O CPF '${cpf}' já está cadastrado no sistema`);
     this.name = "DuplicateCpfError";
   }
 }
 
 /**
- * Exceção para tipo de documento não encontrado
+ * Exceção lançada quando o tipo de documento não é encontrado.
+ * @param id ID do tipo de documento (opcional)
  */
 export class DocumentTypeNotFoundError extends NotFound {
   constructor(id?: string) {
@@ -44,29 +47,33 @@ export class DocumentTypeNotFoundError extends NotFound {
 }
 
 /**
- * Exceção para documento já enviado
+ * Exceção lançada quando o documento já foi enviado para o colaborador.
+ * @param documentType Tipo do documento
  */
 export class DocumentAlreadySentError extends Conflict {
   constructor(documentType: string) {
-    super(`Documento '${documentType}' já foi enviado para este colaborador`);
+    super(`O documento '${documentType}' já foi enviado para este colaborador`);
     this.name = "DocumentAlreadySentError";
   }
 }
 
 /**
- * Exceção para documento não obrigatório
+ * Exceção lançada quando o documento não é obrigatório para o colaborador.
+ * @param documentType Tipo do documento
  */
 export class DocumentNotRequiredError extends BadRequest {
   constructor(documentType: string) {
     super(
-      `Documento '${documentType}' não é obrigatório para este colaborador`
+      `O documento '${documentType}' não é obrigatório para este colaborador`
     );
     this.name = "DocumentNotRequiredError";
   }
 }
 
 /**
- * Exceção para validação de dados customizada
+ * Exceção lançada para erros de validação customizada de campos.
+ * @param field Campo com erro
+ * @param message Mensagem de erro
  */
 export class CustomValidationError extends BadRequest {
   constructor(field: string, message: string) {
@@ -76,7 +83,29 @@ export class CustomValidationError extends BadRequest {
 }
 
 /**
- * Exceção para operações de banco de dados
+ * Exceção lançada quando a página solicitada na paginação não existe.
+ * @param requestedPage Página solicitada
+ * @param totalPages Total de páginas disponíveis
+ */
+export class PageNotFoundError extends BadRequest {
+  constructor(requestedPage: number, totalPages: number) {
+    let message: string;
+
+    if (requestedPage < 1) {
+      message = `A página deve ser no mínimo 1. Página informada: ${requestedPage}`;
+    } else {
+      message = `Página ${requestedPage} não encontrada. Total de páginas disponíveis: ${totalPages}`;
+    }
+
+    super(message);
+    this.name = "PageNotFoundError";
+  }
+}
+
+/**
+ * Exceção lançada para erros em operações de banco de dados.
+ * @param operation Operação realizada
+ * @param details Detalhes do erro (opcional)
  */
 export class DatabaseError extends InternalServerError {
   constructor(operation: string, details?: string) {

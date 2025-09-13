@@ -7,12 +7,16 @@ interface MongoError extends Error {
 }
 
 /**
- * Global Error Middleware para Express que captura todos os erros não tratados
- * e os converte em respostas HTTP padronizadas
+ * Middleware global de tratamento de erros para Express.
+ * Captura todos os erros não tratados e converte em respostas HTTP padronizadas.
  */
 export class GlobalExceptionHandler {
   /**
    * Middleware de tratamento global de erros
+   * @param err Erro capturado
+   * @param req Requisição Express
+   * @param res Resposta Express
+   * @param next Próximo middleware
    */
   static handle(
     err: Error | Exception,
@@ -52,7 +56,9 @@ export class GlobalExceptionHandler {
     };
 
     res.status(errorInfo.status).json(errorResponse);
-  } /**
+  }
+
+  /**
    * Determina informações do erro baseado no tipo/nome da exceção
    */
   private static getErrorInfo(exception: Exception | Error): {
@@ -69,14 +75,14 @@ export class GlobalExceptionHandler {
       };
     }
 
-    // Tratamento específico para erro de JSON malformado
+    // Tratamento específico para corpo JSON malformado
     if (
       exception.name === "SyntaxError" &&
       exception.message?.includes("JSON")
     ) {
       return {
         status: 400,
-        message: `O corpo da requisição está malformado. Certifique-se de enviar um JSON válido.`,
+        message: `O corpo da requisição está inválido. Envie um JSON válido.`,
         code: "INVALID_JSON_BODY",
       };
     }
@@ -110,7 +116,7 @@ export class GlobalExceptionHandler {
       case "DatabaseError":
         return {
           status: 500,
-          message: "Erro interno do servidor",
+          message: "Erro interno do servidor.",
           code: "DATABASE_ERROR",
         };
 
@@ -120,38 +126,38 @@ export class GlobalExceptionHandler {
       case "ParamValidationError":
         return {
           status: 400,
-          message: "Dados de entrada inválidos",
+          message: "Os dados enviados estão inválidos.",
           code: "VALIDATION_ERROR",
         };
 
-      // Erros de MongoDB/Mongoose
-      case "ValidationError": // Mongoose validation
+      // Erros do MongoDB/Mongoose
+      case "ValidationError": // Validação do Mongoose
         return {
           status: 400,
-          message: "Erro de validação dos dados",
+          message: "Os dados enviados estão inválidos.",
           code: "VALIDATION_ERROR",
         };
 
-      case "CastError": // MongoDB cast error
+      case "CastError": // Erro de cast do MongoDB
         return {
           status: 400,
-          message: "Formato de ID inválido",
+          message: "O formato do ID está inválido.",
           code: "INVALID_ID_FORMAT",
         };
 
       case "MongoServerError": {
         const mongoError = exception as MongoError;
         if (mongoError.code === 11000) {
-          // Duplicate key error
+          // Erro de chave duplicada
           return {
             status: 409,
-            message: "Recurso já existe",
+            message: "O recurso já existe.",
             code: "DUPLICATE_RESOURCE",
           };
         }
         return {
           status: 500,
-          message: "Erro interno do servidor",
+          message: "Erro interno do servidor.",
           code: "DATABASE_ERROR",
         };
       }
@@ -160,14 +166,16 @@ export class GlobalExceptionHandler {
       default:
         return {
           status: 500,
-          message: "Erro interno do servidor",
+          message: "Erro interno do servidor.",
           code: "INTERNAL_SERVER_ERROR",
         };
     }
   }
 
   /**
-   * Gera código de erro baseado no tipo da exceção
+   * Gera código de erro baseado no status da exceção
+   * @param exception Exceção TS.ED
+   * @returns Código de erro em português
    */
   private static getErrorCode(exception: Exception): string {
     if (exception.status === 400) return "BAD_REQUEST";
@@ -182,7 +190,10 @@ export class GlobalExceptionHandler {
   }
 
   /**
-   * Log estruturado do erro
+   * Realiza log estruturado do erro
+   * @param exception Exceção capturada
+   * @param req Requisição Express
+   * @param errorInfo Informações do erro
    */
   private static logError(
     exception: Exception | Error,
@@ -209,20 +220,22 @@ export class GlobalExceptionHandler {
       timestamp: new Date().toISOString(),
     };
 
-    // Log level baseado no status
+    // Nível de log baseado no status
     if (errorInfo.status >= 500) {
-      $log.error(" Server Error:", logData);
-      // Em produção, aqui você poderia enviar para um serviço de monitoramento
+      $log.error("Erro de servidor:", logData);
+      // Em produção, aqui você pode enviar para um serviço de monitoramento
       // como Sentry, New Relic, etc.
     } else if (errorInfo.status >= 400) {
-      $log.warn("Client Error:", logData);
+      $log.warn("Erro do cliente:", logData);
     } else {
-      $log.info("Request Error:", logData);
+      $log.info("Erro de requisição:", logData);
     }
   }
 
   /**
-   * Remove campos sensíveis do body para logs
+   * Remove campos sensíveis do corpo da requisição para logs
+   * @param body Corpo da requisição
+   * @returns Corpo sanitizado
    */
   private static sanitizeBody(body: unknown): unknown {
     if (!body || typeof body !== "object") return body;
