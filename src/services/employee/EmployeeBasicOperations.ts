@@ -10,7 +10,6 @@ import type {
   PaginationOptions,
   PaginationResult,
 } from "../../types/EmployeeServiceTypes";
-import { getMongoId } from "../../types/EmployeeServiceTypes";
 
 /**
  * Módulo responsável pelas operações CRUD básicas de colaboradores
@@ -23,13 +22,6 @@ import { getMongoId } from "../../types/EmployeeServiceTypes";
 @Injectable()
 export class EmployeeBasicOperations {
   constructor(@Inject() private employeeRepo: EmployeeRepository) {}
-
-  /**
-   * Helper para extrair ID do Mongoose
-   */
-  private extractId(doc: { _id: string | { toString(): string } }): string {
-    return getMongoId(doc);
-  }
 
   /**
    * Lista colaboradores ativos com paginação e filtros

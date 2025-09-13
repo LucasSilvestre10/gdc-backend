@@ -1,5 +1,5 @@
 import { Property, Required, Default } from "@tsed/schema";
-import { Model, ObjectID, Schema } from "@tsed/mongoose";
+import { Model } from "@tsed/mongoose";
 
 /**
  * Configuração do decorador para o modelo DocumentType.

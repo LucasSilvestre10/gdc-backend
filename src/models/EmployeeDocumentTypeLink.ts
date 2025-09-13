@@ -1,11 +1,11 @@
 import { Property, Required, Default } from "@tsed/schema";
-import { Model, ObjectID, Ref } from "@tsed/mongoose";
+import { Model, Ref } from "@tsed/mongoose";
 import { Employee } from "./Employee";
 import { DocumentType } from "./DocumentType";
 
 /**
  * Modelo para representar vínculos entre colaboradores e tipos de documentos obrigatórios
- * 
+ *
  * Este modelo implementa:
  * - Soft delete por vínculo individual
  * - Rastreamento de auditoria (created, updated, deleted)

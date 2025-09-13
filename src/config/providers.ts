@@ -1,8 +1,7 @@
 import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository.js";
-import { DocumentTypeService } from "../services/DocumentTypeService.js";
 import { EmployeeRepository } from "../repositories/EmployeeRepository.js";
 import { DocumentRepository } from "../repositories/DocumentRepository.js";
-import { registerProvider, InjectorService } from "@tsed/di";
+import { registerProvider } from "@tsed/di";
 
 // Tokens personalizados para evitar conflito com @Model
 export const DOCUMENT_TYPE_REPOSITORY_TOKEN = Symbol("DocumentTypeRepository");
@@ -12,15 +11,15 @@ export const DOCUMENT_REPOSITORY_TOKEN = Symbol("DocumentRepository");
 // Registra os repositórios com tokens personalizados
 registerProvider({
   provide: DOCUMENT_TYPE_REPOSITORY_TOKEN,
-  useClass: DocumentTypeRepository
+  useClass: DocumentTypeRepository,
 });
 
 registerProvider({
   provide: EMPLOYEE_REPOSITORY_TOKEN,
-  useClass: EmployeeRepository
+  useClass: EmployeeRepository,
 });
 
 registerProvider({
   provide: DOCUMENT_REPOSITORY_TOKEN,
-  useClass: DocumentRepository
+  useClass: DocumentRepository,
 });

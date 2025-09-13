@@ -4,11 +4,8 @@ import { EmployeeDocumentationService } from "./employee/EmployeeDocumentationSe
 import { EmployeeLinkService } from "./employee/EmployeeLinkService.js";
 import { EmployeeHelpers } from "./employee/EmployeeHelpers.js";
 import { EmployeeDocumentTypeLinkRepository } from "../repositories/EmployeeDocumentTypeLinkRepository.js";
-import { DocumentRepository } from "../repositories/DocumentRepository.js";
-import { DocumentTypeRepository } from "../repositories/DocumentTypeRepository.js";
 import { Employee } from "../models/Employee.js";
 import { DocumentType } from "../models/DocumentType.js";
-import { EmployeeDocumentTypeLink } from "../models/EmployeeDocumentTypeLink.js";
 import { EmployeeNotFoundError } from "../exceptions/index.js";
 
 import type {
@@ -25,7 +22,6 @@ import type {
   EmployeeDocument,
   EmployeeDto,
   EmployeeSearchResult,
-  DocumentTypeDocument,
 } from "../types/EmployeeServiceTypes.js";
 import { getMongoId } from "../types/EmployeeServiceTypes.js";
 
@@ -45,9 +41,7 @@ export class EmployeeService {
     @Inject() private documentationService: EmployeeDocumentationService,
     @Inject() private linkService: EmployeeLinkService,
     @Inject() private helpers: EmployeeHelpers,
-    @Inject() private linkRepo: EmployeeDocumentTypeLinkRepository,
-    @Inject() private documentRepo: DocumentRepository,
-    @Inject() private documentTypeRepo: DocumentTypeRepository
+    @Inject() private linkRepo: EmployeeDocumentTypeLinkRepository
   ) {}
 
   /**

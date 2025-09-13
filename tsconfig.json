@@ -11,8 +11,8 @@
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
     // Flags para detectar código não utilizado
-    "noUnusedLocals": true,      // Detecta variáveis locais não utilizadas
-    "noUnusedParameters": true   // Detecta parâmetros não utilizados
+    "noUnusedLocals": true, // Detecta variáveis locais não utilizadas
+    "noUnusedParameters": true // Detecta parâmetros não utilizados
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "coverage"]

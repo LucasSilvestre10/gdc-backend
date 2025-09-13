@@ -1,5 +1,12 @@
-import { Property, Required, MinLength, MaxLength, Pattern, Default } from "@tsed/schema";
-import { Model, ObjectID, Ref, Unique } from "@tsed/mongoose";
+import {
+  Property,
+  Required,
+  MinLength,
+  MaxLength,
+  Pattern,
+  Default,
+} from "@tsed/schema";
+import { Model, Ref, Unique } from "@tsed/mongoose";
 import { DocumentType } from "./DocumentType";
 
 @Model({
@@ -9,7 +16,6 @@ import { DocumentType } from "./DocumentType";
   },
 })
 export class Employee {
-
   /** Nome do colaborador */
   @Required()
   @Property(String)
@@ -28,17 +34,19 @@ export class Employee {
   @Property(Date)
   hiredAt: Date = new Date();
 
-  /** 
+  /**
    * Tipos de documentos obrigatórios para o colaborador
    * Estrutura com metadata para suportar soft delete por vínculo
    */
-  @Property([{
-    documentTypeId: { type: String, ref: 'DocumentType', required: true },
-    active: { type: Boolean, default: true },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
-    deletedAt: { type: Date, default: null }
-  }])
+  @Property([
+    {
+      documentTypeId: { type: String, ref: "DocumentType", required: true },
+      active: { type: Boolean, default: true },
+      createdAt: { type: Date, default: Date.now },
+      updatedAt: { type: Date, default: Date.now },
+      deletedAt: { type: Date, default: null },
+    },
+  ])
   requiredDocumentTypes: Array<{
     documentTypeId: Ref<DocumentType>;
     active: boolean;

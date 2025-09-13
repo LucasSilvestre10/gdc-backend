@@ -1,7 +1,6 @@
-import {$log} from "@tsed/logger";
+import { $log } from "@tsed/logger";
 import { PlatformExpress } from "@tsed/platform-express";
-import {Server} from "./Server.js";
-import { MongoMemoryServer } from "mongodb-memory-server";
+import { Server } from "./Server.js";
 import "./config/providers.js";
 
 const SIG_EVENTS = [
@@ -17,28 +16,35 @@ const SIG_EVENTS = [
   "SIGUSR1",
   "SIGSEGV",
   "SIGUSR2",
-  "SIGTERM"
+  "SIGTERM",
 ];
 
 async function bootstrap() {
   try {
-  // Inicializa o TsED normalmente
-  const platform = await PlatformExpress.bootstrap(Server);
-  await platform.listen();
+    // Inicializa o TsED normalmente
+    const platform = await PlatformExpress.bootstrap(Server);
+    await platform.listen();
 
     SIG_EVENTS.forEach((evt) => process.on(evt, () => platform.stop()));
 
     ["uncaughtException", "unhandledRejection"].forEach((evt) =>
       process.on(evt, async (error) => {
-        $log.error({event: "SERVER_" + evt.toUpperCase(), message: error.message, stack: error.stack});
+        $log.error({
+          event: "SERVER_" + evt.toUpperCase(),
+          message: error.message,
+          stack: error.stack,
+        });
         await platform.stop();
       })
     );
   } catch (error) {
     const err = error as Error;
-    $log.error({event: "SERVER_BOOTSTRAP_ERROR", message: err.message, stack: err.stack});
+    $log.error({
+      event: "SERVER_BOOTSTRAP_ERROR",
+      message: err.message,
+      stack: err.stack,
+    });
   }
 }
 
 bootstrap();
-
