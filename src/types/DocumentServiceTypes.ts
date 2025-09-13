@@ -1,5 +1,3 @@
-import { DocumentStatus } from "../models/Document";
-
 /**
  * Tipos para o DocumentService
  * Separados dos DTOs para manter a arquitetura limpa
@@ -59,4 +57,32 @@ export interface FlatPendingDocument {
   };
   status: string;
   active: boolean;
+}
+
+// Tipos para documentos enviados (formato similar ao pending)
+export interface GroupedSentDocument {
+  documentTypeId: string;
+  documentTypeName: string;
+  documentValue: string;
+  status: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface GroupedSentEmployee {
+  employeeId: string;
+  employeeName: string;
+  employeeDocument: string;
+  documents: GroupedSentDocument[];
+}
+
+export interface GroupedSentDocumentsResult {
+  data: GroupedSentEmployee[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }

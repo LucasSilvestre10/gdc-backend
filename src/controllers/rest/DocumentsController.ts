@@ -10,18 +10,19 @@ import { DocumentService } from "../../services/DocumentService";
  *
  * Funcionalidades principais:
  * - GET /documents/pending - Lista documentos pendentes de todos os colaboradores
+ * - GET /documents/sent - Lista documentos enviados de todos os colaboradores
  *
  * Características:
- * - Dashboard administrativo para visualizar pendências globais
- * - Filtros por tipo de documento (documentTypeId)
+ * - Dashboard administrativo para visualizar pendências e documentos enviados globais
+ * - Filtros por tipo de documento (documentTypeId), colaborador (employeeId)
  * - Paginação para performance
  * - Suporte a diferentes status (active/inactive/all)
  *
- * Nota: Para documentos pendentes de colaborador específico,
- * use GET /employees/:id/documents/pending
+ * Nota: Para documentos de colaborador específico,
+ * use GET /employees/:id/documents/pending ou GET /employees/:id/documents/sent
  *
  * Segue princípios SOLID:
- * - Single Responsibility: Apenas dashboard de pendências globais
+ * - Single Responsibility: Apenas dashboard de documentos globais
  * - Open/Closed: Extensível para novos filtros
  * - Interface Segregation: DTO específico para cada operação
  */
@@ -84,6 +85,64 @@ export class DocumentsController {
       };
     } catch (error) {
       console.error("Erro ao listar documentos pendentes:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lista todos os documentos enviados de todos os colaboradores.
+   * Endpoint administrativo para visualização global de documentos enviados.
+   *
+   * @route GET /documents/sent
+   * @query status - Filtro de status (active|inactive|all) - default: active
+   * @query page - Número da página (default: 1)
+   * @query limit - Items por página (default: 10, max: 100)
+   * @query employeeId - Filtro opcional por colaborador específico
+   * @query documentTypeId - Filtro opcional por tipo de documento específico
+   * @returns Lista paginada de documentos enviados agrupados por colaborador
+   *
+   * @example
+   * GET /documents/sent?page=1&limit=20
+   * GET /documents/sent?employeeId=123&status=active
+   * GET /documents/sent?documentTypeId=456
+   *
+   * @note Para documentos enviados de um colaborador específico, use:
+   * GET /employees/:id/documents/sent
+   */
+  @Get("/sent")
+  @Summary("Listar documentos enviados globalmente")
+  @Description(
+    "Lista todos os documentos enviados de todos os colaboradores agrupados por colaborador. " +
+      "Inclui filtros opcionais por colaborador, tipo de documento e status. " +
+      "Suporte a paginação para melhor performance. " +
+      "Retorna apenas documentos que foram efetivamente enviados. " +
+      "Para colaborador específico, use GET /employees/:id/documents/sent"
+  )
+  @Returns(200, Object)
+  @Returns(400, Object)
+  async getSentDocuments(
+    @QueryParams("status") status: string = DocumentsController.DEFAULT_STATUS,
+    @QueryParams("page") page: number = DocumentsController.DEFAULT_PAGE,
+    @QueryParams("limit") limit: number = DocumentsController.DEFAULT_LIMIT,
+    @QueryParams("employeeId") employeeId?: string,
+    @QueryParams("documentTypeId") documentTypeId?: string
+  ) {
+    try {
+      const result = await this.documentService.getSentDocuments({
+        status,
+        page,
+        limit,
+        employeeId,
+        documentTypeId,
+      });
+
+      return {
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      };
+    } catch (error) {
+      console.error("Erro ao listar documentos enviados:", error);
       throw error;
     }
   }

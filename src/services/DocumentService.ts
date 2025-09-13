@@ -17,6 +17,8 @@ import {
   GroupedPendingDocumentsResult,
   GroupedPendingEmployee,
   FlatPendingDocument,
+  GroupedSentDocumentsResult,
+  GroupedSentEmployee,
 } from "../types/DocumentServiceTypes";
 
 // Interface para Employee com _id do Mongoose
@@ -59,6 +61,14 @@ export class DocumentService {
     private employeeRepository: EmployeeRepository,
     private employeeService: EmployeeService
   ) {}
+
+  /**
+   * Extrai ID de um objeto, seja string ou ObjectId
+   */
+  private extractId(obj: { _id?: string | { toString(): string } }): string {
+    if (!obj._id) return "";
+    return typeof obj._id === "string" ? obj._id : obj._id.toString();
+  }
 
   /**
    * Obtém todos os documentos pendentes de todos os colaboradores
@@ -220,6 +230,124 @@ export class DocumentService {
     // Validar se a página solicitada existe
     PaginationUtils.validatePage(page, total, limit);
 
+    const skip = (page - 1) * limit;
+    const paginatedData = groupedData.slice(skip, skip + limit);
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: paginatedData,
+      pagination: { page, limit, total, totalPages },
+    };
+  }
+
+  /**
+   * Lista todos os documentos enviados de todos os colaboradores
+   * Agrupa por colaborador seguindo o mesmo padrão do /documents/pending
+   *
+   * @param params - Parâmetros de filtragem e paginação
+   * @returns Lista paginada de documentos enviados agrupados por colaborador
+   */
+  async getSentDocuments(params: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    employeeId?: string;
+    documentTypeId?: string;
+  }): Promise<GroupedSentDocumentsResult> {
+    const {
+      status = "active",
+      page = 1,
+      limit = 10,
+      employeeId,
+      documentTypeId,
+    } = params;
+
+    // Validar documentTypeId se fornecido
+    if (documentTypeId) {
+      ValidationUtils.validateObjectId(documentTypeId, "documentTypeId");
+      const documentType =
+        await this.documentTypeRepository.findById(documentTypeId);
+      if (!documentType) {
+        return {
+          data: [],
+          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        };
+      }
+    }
+
+    // Busca todos os documentos enviados
+    const filter: Record<string, string | boolean> = {
+      status: "SENT",
+    };
+
+    if (status === "inactive") {
+      filter.isActive = false;
+    } else if (status === "active") {
+      filter.isActive = true;
+    }
+    // Se status === "all", não adiciona filtro de isActive
+
+    if (employeeId) filter.employeeId = employeeId;
+    if (documentTypeId) filter.documentTypeId = documentTypeId;
+
+    const sentDocuments = await this.documentRepository.find(filter);
+
+    // Agrupa por colaborador usando Map
+    const employeeMap = new Map<string, GroupedSentEmployee>();
+
+    for (const doc of sentDocuments) {
+      const employeeIdStr = doc.employeeId.toString();
+
+      if (!employeeMap.has(employeeIdStr)) {
+        // Busca dados do colaborador
+        const employee = (await this.employeeRepository.findById(
+          employeeIdStr
+        )) as EmployeeWithId;
+        if (employee) {
+          employeeMap.set(employeeIdStr, {
+            employeeId: employee._id.toString(),
+            employeeName: employee.name,
+            employeeDocument: employee.document,
+            documents: [],
+          });
+        }
+      }
+
+      // Busca tipo do documento
+      const documentType = await this.documentTypeRepository.findById(
+        doc.documentTypeId.toString()
+      );
+
+      const employeeGroup = employeeMap.get(employeeIdStr);
+      if (employeeGroup) {
+        employeeGroup.documents.push({
+          documentTypeId: doc.documentTypeId.toString(),
+          documentTypeName: documentType?.name || "Tipo não encontrado",
+          documentValue: doc.value,
+          status: doc.status,
+          active: doc.isActive,
+          createdAt: doc.createdAt || new Date(),
+          updatedAt: doc.updatedAt || new Date(),
+        });
+      }
+    }
+
+    const groupedData = Array.from(employeeMap.values());
+
+    // Ordenar colaboradores por nome
+    groupedData.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+
+    // Ordenar documentos dentro de cada colaborador
+    groupedData.forEach((employee) => {
+      employee.documents.sort((a, b) =>
+        a.documentTypeName.localeCompare(b.documentTypeName)
+      );
+    });
+
+    const total = groupedData.length;
+
+    // Aplicar paginação
+    PaginationUtils.validatePage(page, total, limit);
     const skip = (page - 1) * limit;
     const paginatedData = groupedData.slice(skip, skip + limit);
     const totalPages = Math.ceil(total / limit);
