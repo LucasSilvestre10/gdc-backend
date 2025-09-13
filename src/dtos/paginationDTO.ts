@@ -22,23 +22,6 @@ export interface PaginationInfoDto {
 }
 
 /**
- * DTO base para respostas paginadas padronizadas
- */
-export interface StandardPaginatedResponseDto<T> {
-  /** Indica se a operação foi bem-sucedida */
-  success: boolean;
-
-  /** Lista de itens da página atual */
-  data: T[];
-
-  /** Informações de paginação */
-  pagination: PaginationInfoDto;
-
-  /** Mensagem opcional de sucesso */
-  message?: string;
-}
-
-/**
  * DTO para resposta paginada usando o padrão "items"
  * Usado quando queremos manter o padrão legacy de alguns endpoints
  */

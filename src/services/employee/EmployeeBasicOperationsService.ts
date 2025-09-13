@@ -49,13 +49,12 @@ export class EmployeeBasicOperations {
       );
     }
     // Validação de paginação
-    const page = Number(opts.page) || 1;
-    const limit = Number(opts.limit) || 20;
-    if (page < 1 || limit < 1) {
-      throw new ValidationError(
-        "Parâmetros de paginação devem ser maiores que zero"
-      );
-    }
+    let page = opts.page !== undefined ? Number(opts.page) : 1;
+    let limit = opts.limit !== undefined ? Number(opts.limit) : 20;
+
+    // Converter NaN para valores padrão
+    if (isNaN(page) || page < 1) page = 1;
+    if (isNaN(limit) || limit < 1) limit = 20;
 
     // Buscar dados primeiro para calcular total
     const result = await this.employeeRepo.list(filter, { page, limit });

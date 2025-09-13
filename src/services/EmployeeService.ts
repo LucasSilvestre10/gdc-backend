@@ -1,8 +1,8 @@
 import { Injectable, Inject } from "@tsed/di";
-import { EmployeeBasicOperations } from "./employee/EmployeeBasicOperations.js";
+import { EmployeeBasicOperations } from "./employee/EmployeeBasicOperationsService.js";
 import { EmployeeDocumentationService } from "./employee/EmployeeDocumentationService.js";
 import { EmployeeLinkService } from "./employee/EmployeeLinkService.js";
-import { EmployeeHelpers } from "./employee/EmployeeHelpers.js";
+import { EmployeeHelpers } from "./employee/EmployeeHelpersService.js";
 import { EmployeeDocumentTypeLinkRepository } from "../repositories/EmployeeDocumentTypeLinkRepository.js";
 import { Employee } from "../models/Employee.js";
 import { DocumentType } from "../models/DocumentType.js";
