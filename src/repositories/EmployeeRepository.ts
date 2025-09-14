@@ -73,12 +73,13 @@ export class EmployeeRepository {
       ...dto,
       updatedAt: new Date(), // Atualiza timestamp automaticamente
     };
-
-    return await this.employeeModel.findOneAndUpdate(
+    const result = await this.employeeModel.findOneAndUpdate(
       { _id: id, isActive: { $ne: false } }, // Filtra apenas registros ativos
       updateData,
       { new: true } // Retorna documento atualizado
     );
+
+    return result;
   }
 
   /**
