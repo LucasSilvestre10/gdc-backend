@@ -53,6 +53,23 @@ export class EmployeeService {
 
   // =================== MÉTODOS CRUD BÁSICOS ===================
 
+  // DTO interno para respostas mais legíveis
+  private toEmployeeResponseDto(
+    employee: Employee & { _id?: string | { toString(): string }; id?: string }
+  ) {
+    const id = this.extractId(employee as EmployeeDocument);
+    return {
+      id,
+      name: employee.name,
+      document: employee.document,
+      hiredAt: employee.hiredAt,
+      requiredDocumentTypes: employee.requiredDocumentTypes || [],
+      isActive: employee.isActive,
+      createdAt: employee.createdAt,
+      updatedAt: employee.updatedAt,
+    };
+  }
+
   /**
    * Lista colaboradores ativos com paginação e filtros
    */
@@ -95,7 +112,13 @@ export class EmployeeService {
       );
     }
 
-    return employee;
+    // Transformar e retornar DTO legível
+    return this.toEmployeeResponseDto(
+      employee as Employee & {
+        _id?: string | { toString(): string };
+        id?: string;
+      }
+    ) as unknown as Employee;
   }
 
   /**
