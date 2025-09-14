@@ -107,6 +107,7 @@ export class DuplicateEmployeeError extends ConflictError {
       `Já existe um colaborador cadastrado com o CPF ${cpf}`,
       "DUPLICATE_EMPLOYEE_CPF"
     );
+    this.name = "DuplicateEmployeeError";
   }
 }
 

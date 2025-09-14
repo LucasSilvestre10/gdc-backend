@@ -98,6 +98,7 @@ export class GlobalExceptionHandler {
         };
 
       case "DuplicateCpfError":
+      case "DuplicateEmployeeError":
       case "DocumentAlreadySentError":
         return {
           status: 409,
@@ -148,29 +149,32 @@ export class GlobalExceptionHandler {
       case "MongoServerError": {
         const mongoError = exception as MongoError;
         if (mongoError.code === 11000) {
-            // Erro de chave duplicada (E11000)
-            // Tenta extrair o campo duplicado em `keyValue` para uma mensagem mais clara
-            // Exemplo de mongoError: { keyValue: { document: '123.456.789-00' } }
-            let message = "O recurso já existe.";
-            try {
-              const anyErr = mongoError as any;
-              if (anyErr.keyValue && typeof anyErr.keyValue === "object") {
-                const keys = Object.keys(anyErr.keyValue);
-                if (keys.length > 0) {
-                  const field = keys[0];
-                  const value = anyErr.keyValue[field];
-                  message = `Recurso duplicado: campo '${field}' com valor '${value}' já existe.`;
-                }
+          // Erro de chave duplicada (E11000)
+          // Tenta extrair o campo duplicado em `keyValue` para uma mensagem mais clara
+          // Exemplo de mongoError: { keyValue: { document: '123.456.789-00' } }
+          let message = "O recurso já existe.";
+          try {
+            const anyErr = mongoError as unknown as Record<string, unknown>;
+            const keyValue = anyErr["keyValue"] as unknown;
+            if (keyValue && typeof keyValue === "object") {
+              const keys = Object.keys(keyValue as Record<string, unknown>);
+              if (keys.length > 0) {
+                const field = keys[0];
+                const value = (keyValue as Record<string, unknown>)[field];
+                message = `Recurso duplicado: campo '${field}' com valor '${String(
+                  value
+                )}' já existe.`;
               }
-            } catch (e) {
-              // noop - em caso de formato inesperado, manter mensagem genérica
             }
+          } catch {
+            // noop - caso formato inesperado, manter mensagem genérica
+          }
 
-            return {
-              status: 409,
-              message,
-              code: "DUPLICATE_RESOURCE",
-            };
+          return {
+            status: 409,
+            message,
+            code: "DUPLICATE_RESOURCE",
+          };
         }
         return {
           status: 500,
