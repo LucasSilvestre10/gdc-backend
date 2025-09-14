@@ -1,4 +1,10 @@
-import { Property, Required, MinLength, MaxLength, Pattern } from "@tsed/schema";
+import {
+  Property,
+  Required,
+  MinLength,
+  MaxLength,
+  Pattern,
+} from "@tsed/schema";
 
 export class RequiredDocumentDto {
   @Required()
@@ -115,7 +121,7 @@ export class DocumentationStatusResponseDto {
           id: string;
           name: string;
         };
-        status: 'SENT' | 'PENDING';
+        status: "SENT" | "PENDING";
         value: string | null;
         active: boolean;
       }>;
@@ -123,30 +129,10 @@ export class DocumentationStatusResponseDto {
   };
 }
 
-// DTO para resposta paginada
-export class PaginatedResponseDto<T> {
-  @Property()
-  success!: boolean;
-
-  @Property()
-  message?: string;
-
-  @Property()
-  data!: T[];
-
-  @Property()
-  pagination!: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
 // DTO para consulta com filtros de status
 export class StatusFilterDto {
   @Property()
-  status?: 'active' | 'inactive' | 'all' = 'all';
+  status?: "active" | "inactive" | "all" = "all";
 
   @Property()
   page?: number = 1;
@@ -164,7 +150,7 @@ export class EmployeeDocumentDto {
   name!: string;
 
   @Property()
-  status!: 'SENT' | 'PENDING';
+  status!: "SENT" | "PENDING";
 
   @Property()
   documentType!: {

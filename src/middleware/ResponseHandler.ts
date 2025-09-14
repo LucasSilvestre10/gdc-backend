@@ -283,6 +283,8 @@ export class ResponseHandler {
     }
 
     const normalizedData = mapId(data) as T;
+    // Nota: debug temporário removido. Mantemos a conversão para POJO abaixo
+    // para garantir que o framework receba um objeto serializável.
 
     // Remover quaisquer `_id` remanescentes e garantir `id` como string
     const extractIdFrom = (v: unknown): string | null => {
@@ -349,10 +351,18 @@ export class ResponseHandler {
 
     const cleaned = removeIdKeys(normalizedData) as T;
 
+    // Garantir que retornamos um POJO simples (sem prototype/custom getters)
+    let finalData: unknown = cleaned;
+    try {
+      finalData = JSON.parse(JSON.stringify(cleaned));
+    } catch (_err) {
+      // se stringify falhar, manter cleaned
+    }
+
     return {
       success: true,
       message,
-      data: cleaned,
+      data: finalData as T,
       timestamp: new Date().toISOString(),
     };
   }

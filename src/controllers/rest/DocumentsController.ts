@@ -1,9 +1,19 @@
 import { Controller } from "@tsed/di";
-import { Get } from "@tsed/schema";
+import { Get, Example } from "@tsed/schema";
 import { QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
 import { DocumentService } from "../../services/DocumentService";
+import { PaginatedResponseDto } from "../../dtos/paginationDTO";
+import {
+  DOC_PENDING_DESCRIPTION,
+  DOC_PENDING_QUERY_PARAMS,
+  DOC_PENDING_EXAMPLE,
+  DOC_SENT_DESCRIPTION,
+  DOC_SENT_QUERY_PARAMS,
+  DOC_SENT_EXAMPLE,
+} from "../../docs/swagger/documents";
+import { DOC_TYPE_OBJECT_ID_DESCRIPTION } from "../../docs/swagger/common";
 
 /**
  * Controller MVP responsável por operações administrativas globais de documentos.
@@ -55,20 +65,17 @@ export class DocumentsController {
    */
   @Get("/pending")
   @Summary("Listar documentos pendentes globalmente")
-  @Description(
-    "Lista todos os documentos pendentes de todos os colaboradores. " +
-      "Inclui filtros opcionais por tipo de documento e status. " +
-      "Suporte a paginação para melhor performance. " +
-      "Retorna apenas documentos que estão realmente pendentes de envio. " +
-      "Para colaborador específico, use GET /employees/:id/documents/pending"
-  )
-  @Returns(200, Object)
-  @Returns(400, Object)
+  @Description(`${DOC_PENDING_DESCRIPTION}\n\n${DOC_PENDING_QUERY_PARAMS}`)
+  @Example(DOC_PENDING_EXAMPLE)
+  @Returns(200, PaginatedResponseDto)
+  @Returns(400)
   async getPendingDocuments(
     @QueryParams("status") status: string = DocumentsController.DEFAULT_STATUS,
     @QueryParams("page") page: number = DocumentsController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentsController.DEFAULT_LIMIT,
-    @QueryParams("documentTypeId") documentTypeId?: string
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @QueryParams("documentTypeId")
+    documentTypeId?: string
   ) {
     try {
       const result = await this.documentService.getPendingDocuments({
@@ -111,21 +118,18 @@ export class DocumentsController {
    */
   @Get("/sent")
   @Summary("Listar documentos enviados globalmente")
-  @Description(
-    "Lista todos os documentos enviados de todos os colaboradores agrupados por colaborador. " +
-      "Inclui filtros opcionais por colaborador, tipo de documento e status. " +
-      "Suporte a paginação para melhor performance. " +
-      "Retorna apenas documentos que foram efetivamente enviados. " +
-      "Para colaborador específico, use GET /employees/:id/documents/sent"
-  )
-  @Returns(200, Object)
-  @Returns(400, Object)
+  @Description(`${DOC_SENT_DESCRIPTION}\n\n${DOC_SENT_QUERY_PARAMS}`)
+  @Example(DOC_SENT_EXAMPLE)
+  @Returns(200, PaginatedResponseDto)
+  @Returns(400)
   async getSentDocuments(
     @QueryParams("status") status: string = DocumentsController.DEFAULT_STATUS,
     @QueryParams("page") page: number = DocumentsController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentsController.DEFAULT_LIMIT,
     @QueryParams("employeeId") employeeId?: string,
-    @QueryParams("documentTypeId") documentTypeId?: string
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @QueryParams("documentTypeId")
+    documentTypeId?: string
   ) {
     try {
       const result = await this.documentService.getSentDocuments({
