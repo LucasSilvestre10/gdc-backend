@@ -23,6 +23,7 @@ export default defineConfig({
         "src/**/*.spec.ts",
         "src/Server.ts",
         "src/controllers/rest/index.ts",
+        "src/controllers/rest/HealthController.ts",
         "src/utils/**",
         "src/dtos/**", // ignora DTOs - estruturas de dados sem lógica
         "src/types/**", // ignora types - definições de tipos sem lógica de negócio

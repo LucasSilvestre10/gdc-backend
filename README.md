@@ -2,6 +2,41 @@
 
 > Nota: a documentação do código e os testes neste repositório foram escritos em português para facilitar o entendimento do MVP. Idealmente, a documentação deveria estar em inglês para garantir maior alcance.
 
+> Cobertura de testes: o fluxo da API está 100% coberto (veja o resumo abaixo).
+
+<details>
+
+```
+
+ % Coverage report from v8
+----------------------------------------|---------|----------|---------|---------|-------------------
+File                                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+----------------------------------------|---------|----------|---------|---------|-------------------
+All files                               |     100 |      100 |     100 |     100 |
+ controllers/rest                       |     100 |      100 |     100 |     100 |
+  DocumentTypesController.ts            |     100 |      100 |     100 |     100 |
+  DocumentsController.ts                |     100 |      100 |     100 |     100 |
+  EmployeesController.ts                |     100 |      100 |     100 |     100 |
+ repositories                           |     100 |      100 |     100 |     100 |
+  DocumentRepository.ts                 |     100 |      100 |     100 |     100 |
+  DocumentTypeRepository.ts             |     100 |      100 |     100 |     100 |
+  EmployeeDocumentTypeLinkRepository.ts |     100 |      100 |     100 |     100 |
+  EmployeeRepository.ts                 |     100 |      100 |     100 |     100 |
+ services                               |     100 |      100 |     100 |     100 |
+  DocumentService.ts                    |     100 |      100 |     100 |     100 |
+  DocumentTypeService.ts                |     100 |      100 |     100 |     100 |
+  EmployeeService.ts                    |     100 |      100 |     100 |     100 |
+ services/employee                      |     100 |      100 |     100 |     100 |
+  EmployeeBasicOperationsService.ts     |     100 |      100 |     100 |     100 |
+  EmployeeDocumentationService.ts       |     100 |      100 |     100 |     100 |
+  EmployeeHelpersService.ts             |     100 |      100 |     100 |     100 |
+  EmployeeLinkService.ts                |     100 |      100 |     100 |     100 |
+----------------------------------------|---------|----------|---------|---------|-------------------
+
+```
+
+</details>
+
 ## 📌 Visão Geral
 
 O projeto já vem configurado com **Docker** e scripts para inicializar rapidamente o **MongoDB** e o **Mongo-Express**.
@@ -244,6 +279,8 @@ Scripts npm disponíveis (valide no `package.json`):
 - `npm run start-db` — inicia `local-mongo` e `mongo-express` em background (equivale a `docker compose -f docker-compose-db.yml up --build -d`).
 - `npm run start-app` — inicia banco e app em container (`gdc-container-app`) usando `docker compose -f docker-compose-app.yml up --build -d`.
 - `npm run seed` — importa os arquivos JSON da pasta `seed` para o banco definido em `SEED_DB` (default `appdb`). Use `WIPE_BEFORE_IMPORT=1` para apagar coleções explicitamente antes do import.
+- `npm run test` — executa a suíte de testes com Vitest.
+  - Run all tests once:
 
 Fluxos comuns:
 
@@ -255,10 +292,6 @@ Seed behavior note:
 - A aplicação não aplica seeds automaticamente no boot — prefira usar
   `npm run seed` para controlar quando os dados são aplicados durante testes e avaliações.
 
----
-
-## Acompanhar logs do servidor no container
-
 Para seguir os logs do servidor em tempo real use o script npm:
 
 ```powershell
@@ -267,3 +300,69 @@ npm run logs
 ```
 
 Pressione Ctrl+C para sair da visualização dos logs.
+
+---
+
+### Testes
+
+<details>
+<summary>Instruções de testes (clique para expandir)</summary>
+
+Use Vitest para executar a suíte de testes localmente. Exemplos úteis:
+
+- Executar todos os testes uma vez:
+
+```powershell
+npm run test
+```
+
+- Executar um único arquivo de teste:
+
+```powershell
+npm run test -- test/employee.service.spec.ts
+```
+
+- Executar em modo watch
+
+```powershell
+npm run test -- --watch
+```
+
+- Gerar relatório de cobertura
+
+```powershell
+npm run coverage
+```
+
+Exemplo do console
+
+```
+ % Coverage report from v8
+----------------------------------------|---------|----------|---------|---------|-------------------
+File                                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+----------------------------------------|---------|----------|---------|---------|-------------------
+All files                               |     100 |      100 |     100 |     100 |
+ controllers/rest                       |     100 |      100 |     100 |     100 |
+  DocumentTypesController.ts            |     100 |      100 |     100 |     100 |
+  DocumentsController.ts                |     100 |      100 |     100 |     100 |
+  EmployeesController.ts                |     100 |      100 |     100 |     100 |
+ repositories                           |     100 |      100 |     100 |     100 |
+  DocumentRepository.ts                 |     100 |      100 |     100 |     100 |
+  DocumentTypeRepository.ts             |     100 |      100 |     100 |     100 |
+  EmployeeDocumentTypeLinkRepository.ts |     100 |      100 |     100 |     100 |
+  EmployeeRepository.ts                 |     100 |      100 |     100 |     100 |
+ services                               |     100 |      100 |     100 |     100 |
+  DocumentService.ts                    |     100 |      100 |     100 |     100 |
+  DocumentTypeService.ts                |     100 |      100 |     100 |     100 |
+  EmployeeService.ts                    |     100 |      100 |     100 |     100 |
+ services/employee                      |     100 |      100 |     100 |     100 |
+  EmployeeBasicOperationsService.ts     |     100 |      100 |     100 |     100 |
+  EmployeeDocumentationService.ts       |     100 |      100 |     100 |     100 |
+  EmployeeHelpersService.ts             |     100 |      100 |     100 |     100 |
+  EmployeeLinkService.ts                |     100 |      100 |     100 |     100 |
+----------------------------------------|---------|----------|---------|---------|-------------------
+```
+
+</details>
+
+---
