@@ -408,6 +408,49 @@ describe("EmployeeBasicOperations", () => {
       expect(result).toBeNull();
     });
 
+    it("deve lançar DuplicateEmployeeError se alterar CPF para um já existente", async () => {
+      // Arrange
+      const id = "existing-id";
+      const updateDto = { document: "11122233344" };
+
+      // Mock: colaborador atual
+      const currentEmployee = { _id: id, document: "99988877766" };
+      mockEmployeeRepo.findById.mockResolvedValue(currentEmployee);
+
+      // Mock: existe outro colaborador com o CPF desejado
+      const otherEmployee = { _id: "other-id", document: updateDto.document };
+      mockEmployeeRepo.findByDocument.mockResolvedValue(otherEmployee);
+
+      // Act & Assert
+      await expect(
+        employeeBasicOps.updateEmployee(id, updateDto as any)
+      ).rejects.toThrow(DuplicateEmployeeError);
+
+      expect(mockEmployeeRepo.findById).toHaveBeenCalledWith(id);
+      expect(mockEmployeeRepo.findByDocument).toHaveBeenCalledWith(
+        updateDto.document
+      );
+      expect(mockEmployeeRepo.update).not.toHaveBeenCalled();
+    });
+
+    it("deve retornar null se dto.document informado mas colaborador não existir", async () => {
+      // Arrange
+      const id = "missing-id";
+      const updateDto = { document: "11122233344" };
+
+      // findById retorna null (colaborador não existe)
+      mockEmployeeRepo.findById.mockResolvedValue(null);
+
+      // Act
+      const result = await employeeBasicOps.updateEmployee(id, updateDto as any);
+
+      // Assert
+      expect(mockEmployeeRepo.findById).toHaveBeenCalledWith(id);
+      expect(result).toBeNull();
+      expect(mockEmployeeRepo.findByDocument).not.toHaveBeenCalled();
+      expect(mockEmployeeRepo.update).not.toHaveBeenCalled();
+    });
+
     it("deve validar ObjectId antes da atualização", async () => {
       // Arrange
       const id = "invalid-id";

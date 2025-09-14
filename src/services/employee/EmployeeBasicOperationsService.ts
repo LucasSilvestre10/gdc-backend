@@ -145,8 +145,23 @@ export class EmployeeBasicOperations {
     // Valida formato do ObjectId
     ValidationUtils.validateObjectId(id, "ID do colaborador");
 
-    // TODO: Adicionar validação de CPF único se document estiver no DTO
-    // if (dto.document) { ... }
+    // Se o DTO contém CPF (document) e é diferente do atual, valida duplicidade
+    if (dto.document) {
+      // Busca colaborador atual
+      const current = await this.employeeRepo.findById(id);
+      // Se não existe, retorna null (comportamento anterior)
+      if (!current) return null;
+
+      const currentDocument = current.document;
+      // Se o CPF mudou, verificar duplicidade
+      if (dto.document !== currentDocument) {
+        const existing = await this.employeeRepo.findByDocument(dto.document!);
+        if (existing && this.employeeRepo) {
+          // Se o documento pertence a outro colaborador, lançar erro de conflito
+          throw new DuplicateEmployeeError(dto.document!);
+        }
+      }
+    }
 
     return this.employeeRepo.update(id, dto);
   }

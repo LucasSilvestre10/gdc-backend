@@ -148,12 +148,29 @@ export class GlobalExceptionHandler {
       case "MongoServerError": {
         const mongoError = exception as MongoError;
         if (mongoError.code === 11000) {
-          // Erro de chave duplicada
-          return {
-            status: 409,
-            message: "O recurso já existe.",
-            code: "DUPLICATE_RESOURCE",
-          };
+            // Erro de chave duplicada (E11000)
+            // Tenta extrair o campo duplicado em `keyValue` para uma mensagem mais clara
+            // Exemplo de mongoError: { keyValue: { document: '123.456.789-00' } }
+            let message = "O recurso já existe.";
+            try {
+              const anyErr = mongoError as any;
+              if (anyErr.keyValue && typeof anyErr.keyValue === "object") {
+                const keys = Object.keys(anyErr.keyValue);
+                if (keys.length > 0) {
+                  const field = keys[0];
+                  const value = anyErr.keyValue[field];
+                  message = `Recurso duplicado: campo '${field}' com valor '${value}' já existe.`;
+                }
+              }
+            } catch (e) {
+              // noop - em caso de formato inesperado, manter mensagem genérica
+            }
+
+            return {
+              status: 409,
+              message,
+              code: "DUPLICATE_RESOURCE",
+            };
         }
         return {
           status: 500,
