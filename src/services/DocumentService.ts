@@ -80,8 +80,13 @@ export class DocumentService {
   async getPendingDocuments(
     params: GetPendingDocumentsParams
   ): Promise<GroupedPendingDocumentsResult> {
-    // Extrair parâmetros com valores padrão seguros
+    // Extrair parâmetros com valores padrão seguros (inclui paginação)
     const { status = "all", documentTypeId } = params;
+    let { page = 1, limit = 10 } = params;
+
+    // Sanitizar valores de paginação
+    page = Math.max(1, page);
+    limit = Math.min(Math.max(1, limit), 100);
 
     // Validar documentTypeId se fornecido
     if (documentTypeId) {
@@ -93,16 +98,10 @@ export class DocumentService {
       if (!documentType) {
         return {
           data: [],
-          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+          pagination: PaginationUtils.createPaginationInfo(page, limit, 0),
         };
       }
     }
-
-    let { page = 1, limit = 10 } = params;
-
-    // Sanitizar valores de paginação
-    page = Math.max(1, page);
-    limit = Math.min(Math.max(1, limit), 100);
 
     // ETAPA 1: Buscar colaboradores ativos
     const employeeFilter: Record<string, boolean | Record<string, boolean>> = {
@@ -117,7 +116,7 @@ export class DocumentService {
     if (employeesData.items.length === 0) {
       return {
         data: [],
-        pagination: { page, limit, total: 0, totalPages: 0 },
+        pagination: PaginationUtils.createPaginationInfo(page, limit, 0),
       };
     }
 
@@ -232,11 +231,10 @@ export class DocumentService {
 
     const skip = (page - 1) * limit;
     const paginatedData = groupedData.slice(skip, skip + limit);
-    const totalPages = Math.ceil(total / limit);
 
     return {
       data: paginatedData,
-      pagination: { page, limit, total, totalPages },
+      pagination: PaginationUtils.createPaginationInfo(page, limit, total),
     };
   }
 
@@ -254,13 +252,12 @@ export class DocumentService {
     employeeId?: string;
     documentTypeId?: string;
   }): Promise<GroupedSentDocumentsResult> {
-    const {
-      status = "active",
-      page = 1,
-      limit = 10,
-      employeeId,
-      documentTypeId,
-    } = params;
+    const { status = "active", employeeId, documentTypeId } = params;
+    let { page = 1, limit = 10 } = params;
+
+    // Sanitizar valores de paginação
+    page = Math.max(1, page);
+    limit = Math.min(Math.max(1, limit), 100);
 
     // Validar documentTypeId se fornecido
     if (documentTypeId) {
@@ -270,7 +267,7 @@ export class DocumentService {
       if (!documentType) {
         return {
           data: [],
-          pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+          pagination: PaginationUtils.createPaginationInfo(page, limit, 0),
         };
       }
     }
@@ -350,11 +347,10 @@ export class DocumentService {
     PaginationUtils.validatePage(page, total, limit);
     const skip = (page - 1) * limit;
     const paginatedData = groupedData.slice(skip, skip + limit);
-    const totalPages = Math.ceil(total / limit);
 
     return {
       data: paginatedData,
-      pagination: { page, limit, total, totalPages },
+      pagination: PaginationUtils.createPaginationInfo(page, limit, total),
     };
   }
 

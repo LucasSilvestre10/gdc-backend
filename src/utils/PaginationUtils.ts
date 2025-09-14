@@ -51,7 +51,11 @@ export class PaginationUtils {
    * @param total - Total de registros
    * @returns Objeto de paginação com informações completas
    */
-  static createPaginationInfo(page: number, limit: number, total: number) {
+  static createPaginationInfo(
+    page: number = 1,
+    limit: number = 10,
+    total: number
+  ) {
     const totalPages = this.calculateTotalPages(total, limit);
 
     return {
