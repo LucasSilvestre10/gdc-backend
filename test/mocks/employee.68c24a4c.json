@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "id": "68c24a4cc85e79937983a83d",
+    "name": "João Silva",
+    "document": "123.456.789-01",
+    "hiredAt": "2024-01-15T00:00:00.000Z",
+    "isActive": true,
+    "createdAt": "2025-09-11T04:04:28.461Z",
+    "updatedAt": "2025-09-11T04:04:28.461Z"
+  }
+}

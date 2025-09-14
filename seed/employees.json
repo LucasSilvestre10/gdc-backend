@@ -1,0 +1,268 @@
+[
+  {
+    "_id": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "name": "Mariana Torres",
+    "document": "113.455.666-77",
+    "hiredAt": { "$date": "2024-06-15T00:00:00Z" },
+    "requiredDocumentTypes": [
+      "68c09eb89f7160b6bde944d2",
+      "68c0a1e07d886b802d8021b2",
+      "68c0b12ee915e716f9c311f7"
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T04:16:57.287Z" },
+    "updatedAt": { "$date": "2025-09-14T04:46:49.366Z" },
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c101aeb740dd18300c30ea" },
+    "name": "Maria Santos",
+    "document": "987.654.321-00",
+    "hiredAt": { "$date": "2024-02-01T00:00:00Z" },
+    "requiredDocumentTypes": [
+      "68c0a1e07d886b802d8021b2",
+      "68c0a80d495d1e4c81f0a151",
+      "68c0b12ee915e716f9c311f7",
+      "68c09eb89f7160b6bde944d2",
+      "68c0a1997d886b802d80219b"
+    ],
+    "isActive": false,
+    "createdAt": { "$date": "2025-09-10T04:42:22.283Z" },
+    "updatedAt": { "$date": "2025-09-12T18:53:05.582Z" },
+    "deletedAt": { "$date": "2025-09-12T18:53:05.581Z" }
+  },
+  {
+    "_id": { "$oid": "68c101bcb740dd18300c30ed" },
+    "name": "João Pedro",
+    "document": "111.222.333-41",
+    "hiredAt": { "$date": "2024-03-15T00:00:00Z" },
+    "requiredDocumentTypes": [
+      "68c09eb89f7160b6bde944d2",
+      "68c0b12ee915e716f9c311f7",
+      "68c0b159e915e716f9c311fe"
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T04:42:36.145Z" },
+    "updatedAt": { "$date": "2025-09-14T04:40:16.142Z" }
+  },
+  {
+    "_id": { "$oid": "68c101c4b740dd18300c30f0" },
+    "name": "Ana Silva",
+    "document": "555.666.777-88",
+    "hiredAt": { "$date": "2024-04-10T00:00:00Z" },
+    "requiredDocumentTypes": [
+      "68c09eb89f7160b6bde944d2",
+      "68c0a80d495d1e4c81f0a151"
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T04:42:44.431Z" },
+    "updatedAt": { "$date": "2025-09-13T05:17:03.284Z" }
+  },
+  {
+    "_id": { "$oid": "68c101cbb740dd18300c30f3" },
+    "name": "Carlos Oliveira",
+    "document": "999.888.777-66",
+    "hiredAt": { "$date": "2024-05-20T00:00:00Z" },
+    "requiredDocumentTypes": [
+      "68c0b12ee915e716f9c311f7",
+      "68c0b24f0529be855310c6ad",
+      "68c09eb89f7160b6bde944d2",
+      "68c0a1e07d886b802d8021b2"
+    ],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T04:42:51.419Z" },
+    "updatedAt": { "$date": "2025-09-13T04:33:01.83Z" }
+  },
+  {
+    "_id": { "$oid": "68c10783ebb83a215af9fd87" },
+    "name": "Sérgio Lima",
+    "document": "000.000.000-00",
+    "hiredAt": { "$date": "2024-01-01T00:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T05:07:15.43Z" },
+    "updatedAt": { "$date": "2025-09-10T05:12:34.091Z" },
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c24a4cc85e79937983a83d" },
+    "name": "João Menezes",
+    "document": "123.456.789-01",
+    "hiredAt": { "$date": "2024-01-15T00:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-11T04:04:28.461Z" },
+    "updatedAt": { "$date": "2025-09-11T04:04:28.461Z" }
+  },
+  {
+    "_id": { "$oid": "68c24bc2c85e79937983a890" },
+    "name": "Maria Silva",
+    "document": "123.456.789-00",
+    "hiredAt": { "$date": "2024-01-15T00:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-11T04:10:42.007Z" },
+    "updatedAt": { "$date": "2025-09-11T04:10:42.007Z" }
+  },
+  {
+    "_id": { "$oid": "68c46f363efe98c9bc880e5d" },
+    "name": "Rosa Almeida",
+    "document": "072.147.852-77",
+    "hiredAt": { "$date": "2024-01-10T00:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-12T19:06:30.577Z" },
+    "updatedAt": { "$date": "2025-09-12T19:06:30.577Z" }
+  },
+  {
+    "_id": { "$oid": "68c49e0807f03f213684d613" },
+    "name": "Mariana Almeida",
+    "document": "444.555.666-77",
+    "hiredAt": { "$date": "2024-07-01T00:00:00Z" },
+    "requiredDocumentTypes": ["68c0a80d495d1e4c81f0a151"],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-12T22:26:16.928Z" },
+    "updatedAt": { "$date": "2025-09-13T02:00:41.336Z" },
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c5e9a49d748500370bff7e" },
+    "name": "João Carvalho",
+    "document": "017.729.933-95",
+    "hiredAt": { "$date": "2025-09-13T00:00:00Z" },
+    "requiredDocumentTypes": ["68c0e5717b5fb2e62325bd81"],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T22:01:08.768Z" },
+    "updatedAt": { "$date": "2025-09-13T22:10:22.38Z" }
+  },
+  {
+    "_id": { "$oid": "68c5f706a828472169248437" },
+    "name": "Paulo Ramos",
+    "document": "017.729.933-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T22:58:14.951Z" },
+    "updatedAt": { "$date": "2025-09-13T22:58:14.951Z" }
+  },
+  {
+    "_id": { "$oid": "68c5f7c8eb46315c3b4e671e" },
+    "name": "Fernanda Costa",
+    "document": "017.729.743-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:01:28.183Z" },
+    "updatedAt": { "$date": "2025-09-13T23:01:28.183Z" }
+  },
+  {
+    "_id": { "$oid": "68c5f7eb518575188ccf3db0" },
+    "name": "Rafael Souza",
+    "document": "017.779.743-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:02:03.483Z" },
+    "updatedAt": { "$date": "2025-09-13T23:02:03.483Z" }
+  },
+  {
+    "_id": { "$oid": "68c5f8097515c1e958108adc" },
+    "name": "Gabriela Lima",
+    "document": "027.779.743-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:02:33.408Z" },
+    "updatedAt": { "$date": "2025-09-13T23:02:33.408Z" }
+  },
+  {
+    "_id": { "$oid": "68c5f90caa082085fd31e7a9" },
+    "name": "Marcos Oliveira",
+    "document": "127.779.743-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:06:52.33Z" },
+    "updatedAt": { "$date": "2025-09-13T23:06:52.33Z" }
+  },
+  {
+    "_id": { "$oid": "68c5fa69ab307d7595ebbc79" },
+    "name": "Thiago Pereira",
+    "document": "868.972.413-22",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:12:41.345Z" },
+    "updatedAt": { "$date": "2025-09-13T23:12:41.345Z" }
+  },
+  {
+    "_id": { "$oid": "68c5fbb7281f976f03d9d0db" },
+    "name": "Beatriz Moreira",
+    "document": "127.729.723-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:18:15.715Z" },
+    "updatedAt": { "$date": "2025-09-13T23:18:15.715Z" }
+  },
+  {
+    "_id": { "$oid": "68c5fc39d0d586399ae0f5f0" },
+    "name": "Lucas Ferreira",
+    "document": "127.729.724-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:20:25.841Z" },
+    "updatedAt": { "$date": "2025-09-13T23:20:25.841Z" }
+  },
+  {
+    "_id": { "$oid": "68c60029b0b01b2691744ee2" },
+    "name": "Camila Andrade",
+    "document": "137.729.724-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:37:13.956Z" },
+    "updatedAt": { "$date": "2025-09-13T23:37:13.956Z" }
+  },
+  {
+    "_id": { "$oid": "68c60084f392c6622fefc465" },
+    "name": "Eduardo Martins",
+    "document": "137.729.734-87",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:38:44.313Z" },
+    "updatedAt": { "$date": "2025-09-13T23:38:44.313Z" }
+  },
+  {
+    "_id": { "$oid": "68c6010197c3e478fbac61f4" },
+    "name": "Larissa Teixeira",
+    "document": "137.729.734-10",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:40:49.473Z" },
+    "updatedAt": { "$date": "2025-09-13T23:40:49.473Z" }
+  },
+  {
+    "_id": { "$oid": "68c6023216114cd98bbcda01" },
+    "name": "André Gomes",
+    "document": "137.729.734-11",
+    "hiredAt": { "$date": "2025-09-13T03:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T23:45:54.083Z" },
+    "updatedAt": { "$date": "2025-09-13T23:45:54.083Z" }
+  },
+  {
+    "_id": { "$oid": "68c647655418edcd53bcad4a" },
+    "name": "Helena Sousa",
+    "document": "112.455.666-77",
+    "hiredAt": { "$date": "2024-06-15T00:00:00Z" },
+    "requiredDocumentTypes": [],
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-14T04:41:09.291Z" },
+    "updatedAt": { "$date": "2025-09-14T04:41:48.643Z" }
+  }
+]

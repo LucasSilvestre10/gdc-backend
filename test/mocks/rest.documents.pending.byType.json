@@ -1,0 +1,47 @@
+﻿{
+  "success": true,
+  "data": [
+    {
+      "employeeId": "68c101cbb740dd18300c30f3",
+      "employeeName": "Carlos Oliveira",
+      "documents": [
+        {
+          "documentTypeId": "68c0b12ee915e716f9c311f7",
+          "documentTypeName": "Carteira de Trabalho",
+          "status": "PENDING",
+          "active": true
+        }
+      ]
+    },
+    {
+      "employeeId": "68c101bcb740dd18300c30ed",
+      "employeeName": "João Pedro",
+      "documents": [
+        {
+          "documentTypeId": "68c0b12ee915e716f9c311f7",
+          "documentTypeName": "Carteira de Trabalho",
+          "status": "PENDING",
+          "active": true
+        }
+      ]
+    },
+    {
+      "employeeId": "68c0fbb9b94a6e7f227a6a5c",
+      "employeeName": "João Silva Atualizado",
+      "documents": [
+        {
+          "documentTypeId": "68c0b12ee915e716f9c311f7",
+          "documentTypeName": "Carteira de Trabalho",
+          "status": "PENDING",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 3,
+    "totalPages": 1
+  }
+}

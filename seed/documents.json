@@ -1,0 +1,42 @@
+[
+  {
+    "_id": { "$oid": "68c4fdcc358585abda14f9a6" },
+    "value": "123555441",
+    "status": "SENT",
+    "employeeId": "68c0fbb9b94a6e7f227a6a5c",
+    "documentTypeId": "68c0a1e07d886b802d8021b2",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T05:14:52.23Z" },
+    "updatedAt": { "$date": "2025-09-13T05:14:52.23Z" }
+  },
+  {
+    "_id": { "$oid": "68c4fe4f358585abda14f9c3" },
+    "value": "1235554421",
+    "status": "SENT",
+    "employeeId": "68c101c4b740dd18300c30f0",
+    "documentTypeId": "68c09eb89f7160b6bde944d2",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T05:17:03.281Z" },
+    "updatedAt": { "$date": "2025-09-13T05:17:23.724Z" }
+  },
+  {
+    "_id": { "$oid": "68c4fe81358585abda14f9dd" },
+    "value": "vinculo2",
+    "status": "SENT",
+    "employeeId": "68c101c4b740dd18300c30f0",
+    "documentTypeId": "68c0a80d495d1e4c81f0a151",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T05:17:53.035Z" },
+    "updatedAt": { "$date": "2025-09-13T05:17:53.035Z" }
+  },
+  {
+    "_id": { "$oid": "68c5ebce9d748500370bff8c" },
+    "value": "01772993395",
+    "status": "SENT",
+    "employeeId": "68c5e9a49d748500370bff7e",
+    "documentTypeId": "68c0e5717b5fb2e62325bd81",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-13T22:10:22.377Z" },
+    "updatedAt": { "$date": "2025-09-13T22:10:22.377Z" }
+  }
+]

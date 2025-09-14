@@ -1,0 +1,21 @@
+{
+  "success": true,
+  "data": [
+    {
+      "id": "68c101cbb740dd18300c30f3",
+      "name": "Carlos Oliveira",
+      "document": "999.888.777-66"
+    },
+    {
+      "id": "68c101bcb740dd18300c30ed",
+      "name": "João Pedro",
+      "document": "111.222.333-44"
+    },
+    {
+      "id": "68c0fbb9b94a6e7f227a6a5c",
+      "name": "João Silva Atualizado",
+      "document": "999.888.777-55"
+    }
+  ],
+  "pagination": { "page": 1, "limit": 10, "total": 3, "totalPages": 1 }
+}

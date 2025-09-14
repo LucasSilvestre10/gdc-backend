@@ -1,0 +1,95 @@
+﻿{
+    "success":  true,
+    "data":  [
+                 {
+                     "employeeId":  "68c101cbb740dd18300c30f3",
+                     "employeeName":  "Carlos Oliveira",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0b12ee915e716f9c311f7",
+                                           "documentTypeName":  "Carteira de Trabalho",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c09eb89f7160b6bde944d2",
+                                           "documentTypeName":  "CPF Atualizado",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c0b24f0529be855310c6ad",
+                                           "documentTypeName":  "Reservista",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c0a1e07d886b802d8021b2",
+                                           "documentTypeName":  "RG",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       }
+                                   ]
+                 },
+                 {
+                     "employeeId":  "68c101bcb740dd18300c30ed",
+                     "employeeName":  "João Pedro",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0b12ee915e716f9c311f7",
+                                           "documentTypeName":  "Carteira de Trabalho",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c09eb89f7160b6bde944d2",
+                                           "documentTypeName":  "CPF Atualizado",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c0b159e915e716f9c311fe",
+                                           "documentTypeName":  "Tipo não encontrado",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       }
+                                   ]
+                 },
+                 {
+                     "employeeId":  "68c0fbb9b94a6e7f227a6a5c",
+                     "employeeName":  "João Silva Atualizado",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0b12ee915e716f9c311f7",
+                                           "documentTypeName":  "Carteira de Trabalho",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       },
+                                       {
+                                           "documentTypeId":  "68c09eb89f7160b6bde944d2",
+                                           "documentTypeName":  "CPF Atualizado",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       }
+                                   ]
+                 },
+                 {
+                     "employeeId":  "68c49e0807f03f213684d613",
+                     "employeeName":  "Maria Teste Silva Atualizada",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0a80d495d1e4c81f0a151",
+                                           "documentTypeName":  "CNH",
+                                           "status":  "PENDING",
+                                           "active":  true
+                                       }
+                                   ]
+                 }
+             ],
+    "pagination":  {
+                       "page":  1,
+                       "limit":  10,
+                       "total":  4,
+                       "totalPages":  1
+                   }
+}

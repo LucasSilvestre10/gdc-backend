@@ -1,0 +1,52 @@
+﻿{
+    "success":  true,
+    "data":  [
+                 {
+                     "employeeId":  "68c101c4b740dd18300c30f0",
+                     "employeeName":  "Ana Silva",
+                     "employeeDocument":  "555.666.777-88",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0a80d495d1e4c81f0a151",
+                                           "documentTypeName":  "CNH",
+                                           "documentValue":  "vinculo2",
+                                           "status":  "SENT",
+                                           "active":  true,
+                                           "createdAt":  "2025-09-13T05:17:53.035Z",
+                                           "updatedAt":  "2025-09-13T05:17:53.035Z"
+                                       },
+                                       {
+                                           "documentTypeId":  "68c09eb89f7160b6bde944d2",
+                                           "documentTypeName":  "CPF Atualizado",
+                                           "documentValue":  "1235554421",
+                                           "status":  "SENT",
+                                           "active":  true,
+                                           "createdAt":  "2025-09-13T05:17:03.281Z",
+                                           "updatedAt":  "2025-09-13T05:17:23.724Z"
+                                       }
+                                   ]
+                 },
+                 {
+                     "employeeId":  "68c0fbb9b94a6e7f227a6a5c",
+                     "employeeName":  "João Silva Atualizado",
+                     "employeeDocument":  "999.888.777-55",
+                     "documents":  [
+                                       {
+                                           "documentTypeId":  "68c0a1e07d886b802d8021b2",
+                                           "documentTypeName":  "RG",
+                                           "documentValue":  "123555441",
+                                           "status":  "SENT",
+                                           "active":  true,
+                                           "createdAt":  "2025-09-13T05:14:52.230Z",
+                                           "updatedAt":  "2025-09-13T05:14:52.230Z"
+                                       }
+                                   ]
+                 }
+             ],
+    "pagination":  {
+                       "page":  1,
+                       "limit":  10,
+                       "total":  2,
+                       "totalPages":  1
+                   }
+}

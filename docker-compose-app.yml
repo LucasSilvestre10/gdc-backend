@@ -1,0 +1,75 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: local-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+      MONGO_INITDB_DATABASE: appdb
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "-u",
+          "admin",
+          "-p",
+          "secret",
+          "--eval",
+          "db.adminCommand('ping')",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: secret
+      ME_CONFIG_MONGODB_SERVER: mongodb # nome exato do serviço Mongo
+      ME_CONFIG_BASICAUTH_USERNAME: admin # login GUI opcional
+      ME_CONFIG_BASICAUTH_PASSWORD: secret
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gdc-container-app
+    restart: always
+    ports:
+      - "8083:8081"
+    command: ["sh", "-c", "npm ci --silent && npm run start"]
+    volumes:
+      - ./:/opt
+      - /opt/node_modules
+    environment:
+      - PORT=8081
+      - NODE_ENV=development
+      - MONGO_URL=mongodb://admin:secret@mongodb:27017/appdb?authSource=admin
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/rest/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  mongo_data:

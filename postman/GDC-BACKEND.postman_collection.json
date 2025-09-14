@@ -1,0 +1,1197 @@
+{
+	"info": {
+		"_postman_id": "38788454-2256-49f6-a36c-ac00b6e0a793",
+		"name": "GDC-BACKEND",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "48396924",
+		"_collection_link": "https://lucassilvestre10-186d08ec-4957444.postman.co/workspace/Lucas-Silva-Silvestre's-Workspa~a76f9d24-8bd6-4878-8ea8-5ad092ac945a/collection/48396924-38788454-2256-49f6-a36c-ac00b6e0a793?action=share&source=collection_link&creator=48396924"
+	},
+	"item": [
+		{
+			"name": "DocumentTypes",
+			"item": [
+				{
+					"name": "Criar Tipo de Documento",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"cpf\",\n  \"description\": \"certidão de pessoa física\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/document-types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Tipos de Documento",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/document-types",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Número da página (padrão: 1)",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Itens por página (padrão: 10)",
+									"disabled": true
+								},
+								{
+									"key": "name",
+									"value": "CPF",
+									"description": "Filtro por nome (busca parcial)",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "active",
+									"description": "active | inactive | all (padrão: all)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Busca geral, aceita params para filtro, mas se não enviado já possuem valores padrão."
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar Tipo por ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/document-types/{{documentTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types",
+								"{{documentTypeId}}"
+							]
+						},
+						"description": "Busca pelo tipo de documento diretamente pelo id, existem validações para o tipo de id aceito."
+					},
+					"response": []
+				},
+				{
+					"name": "Atualizar Tipo de Documento",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"cpf\",\n  \"description\": \"certidão de pessoa física\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/document-types/{{documentTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types",
+								"{{documentTypeId}}"
+							]
+						},
+						"description": "Atualiza o documento com query recebendo id e body corpo padrão, existe validação para formato do corpo."
+					},
+					"response": []
+				},
+				{
+					"name": "Remover Tipo (Soft Delete)",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/document-types/{{documentTypeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types",
+								"{{documentTypeId}}"
+							]
+						},
+						"description": "Realiza sof delete de acordo com id enviado"
+					},
+					"response": []
+				},
+				{
+					"name": "Restaurar Tipo de Documento",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/document-types/{{documentTypeId}}/restore",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types",
+								"{{documentTypeId}}",
+								"restore"
+							]
+						},
+						"description": "Restaura sof delete de acordo com id enviado"
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Colaboradores Vinculados",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/document-types/{{documentTypeId}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"document-types",
+								"{{documentTypeId}}",
+								"employees"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Número da página",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Itens por página",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Lista de colaboradores que estão vinculados ao tipo de documento informado pelo id."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "DocumentsController",
+			"item": [
+				{
+					"name": "Listar documentos pendentes globalmente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/documents/pending/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								"pending",
+								""
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filtro de status (active|inactive|all)",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Número da página",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Itens por página",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Lista todos os documentos pendentes de todos os colaboradores. Permite filtros por status, paginação e tipo de documento."
+					},
+					"response": []
+				},
+				{
+					"name": "Listar documentos pendentes por tipo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/documents/pending?documentTypeId=68c0b12ee915e716f9c311f7",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								"pending"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active",
+									"description": "Filtro de status",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Número da página",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Itens por página",
+									"disabled": true
+								},
+								{
+									"key": "documentTypeId",
+									"value": "68c0b12ee915e716f9c311f7"
+								}
+							]
+						},
+						"description": "Lista documentos pendentes filtrando por tipo de documento."
+					},
+					"response": []
+				},
+				{
+					"name": "Listar documentos enviados globalmente",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8083/rest/documents/sent",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8083",
+							"path": [
+								"rest",
+								"documents",
+								"sent"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active",
+									"disabled": true
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "5",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "EmployeesController",
+			"item": [
+				{
+					"name": "Funções básicas Colaborador",
+					"item": [
+						{
+							"name": "Criar colaborador",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Maria Teste Silva 1\",\n    \"document\": \"111.455.666-77\",\n    \"hiredAt\": \"2024-06-15\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/employees",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Atualizar colaborador",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"Maria Teste Silva 1\",\n    \"document\": \"113.455.666-77\",\n    \"hiredAt\": \"2024-06-15T00:00:00.000Z\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}"
+									]
+								},
+								"description": "Atualiza os dados de um colaborador existente."
+							},
+							"response": []
+						},
+						{
+							"name": "Excluir colaborador (soft delete)",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}"
+									]
+								},
+								"description": "Remove um colaborador do sistema (soft delete - marca como inativo)."
+							},
+							"response": []
+						},
+						{
+							"name": "Restaurar Colaborador",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test('Status code is 200', function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test('Employee was restored', function () {",
+											"    const responseJson = pm.response.json();",
+											"    pm.expect(responseJson.success).to.be.true;",
+											"    pm.expect(responseJson.message).to.include('reativado com sucesso');",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/restore",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"restore"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Listar todos os colaboradores",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"description": "Número da página",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "10",
+											"description": "Itens por página",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "inactive",
+											"description": "Filtro de status (active|inactive|all)",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Lista todos os colaboradores com paginação e filtros."
+							},
+							"response": []
+						},
+						{
+							"name": "Buscar colaboradores por CPF ou Nome",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/employees/search?query=maria",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"search"
+									],
+									"query": [
+										{
+											"key": "query",
+											"value": "maria"
+										},
+										{
+											"key": "status",
+											"value": "all",
+											"disabled": true
+										},
+										{
+											"key": "page",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "10",
+											"disabled": true
+										}
+									]
+								},
+								"description": "Lista todos os colaboradores com paginação e filtros."
+							},
+							"response": []
+						},
+						{
+							"name": "Buscar colaborador por ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}"
+									]
+								},
+								"description": "Busca um colaborador específico pelo ID."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Gestão de Documentos Obrigatórios",
+					"item": [
+						{
+							"name": "Vincular tipos de documentos",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"documentTypeIds\": [\n        \"68c09eb89f7160b6bde944d2\", //trazer ids validos que ja foram cadastrados\n        \"68c0a80d495d1e4c81f0a151\" //trazer ids validos que ja foram cadastrados\n    ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/required-documents",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"required-documents"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Desvincular tipo de documento",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/required-documents/{{documentTypeId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"required-documents",
+										"{{documentTypeId}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Restaurar vinculo de tipo de documento",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/required-documents/{{documentTypeId}}/restore",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"required-documents",
+										"{{documentTypeId}}",
+										"restore"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Envio de Documentos",
+					"item": [
+						{
+							"name": "Enviar documento",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"value\": \"vinculo2\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/documents/{{documentTypeId}}",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"documents",
+										"{{documentTypeId}}"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Consulta de Documentos",
+					"item": [
+						{
+							"name": "Documentos enviados",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/documents/sent",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"documents",
+										"sent"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Documentos pendentes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/documents/pending",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"documents",
+										"pending"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Todos os documentos vinculados",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/documentation",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"documentation"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Tipos de documentos vinculados ao colaborador",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "accept",
+										"value": "application/json"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/employees/{{employeeId}}/required-documents",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"employees",
+										"{{employeeId}}",
+										"required-documents"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "inactive",
+											"description": "Filtro de status (active|inactive|all) padrão \"all\"",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Cenários de Teste - Validações",
+			"item": [
+				{
+					"name": "ID inválido - Colaborador",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/invalid-id-123",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"invalid-id-123"
+							]
+						},
+						"description": "Testa ID inválido (deve retornar 400)."
+					},
+					"response": []
+				},
+				{
+					"name": "ID inexistente - Colaborador",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/507f1f77bcf86cd799439011",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"507f1f77bcf86cd799439011"
+							]
+						},
+						"description": "ID válido mas inexistente (deve retornar 404)."
+					},
+					"response": []
+				},
+				{
+					"name": "CPF duplicado",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Maria Santos duplicada\",\n    \"document\": \"123.456.789-01\",// ou qualquer outro cpf(document) já utilizado\n    \"hiredAt\": \"2025-09-13T05:19:24.187Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						},
+						"description": "CPF duplicado (deve retornar 409)."
+					},
+					"response": []
+				},
+				{
+					"name": "Página inexistente",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees?page=999&limit=10",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "999"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Página que não existe (deve retornar 400)."
+					},
+					"response": []
+				},
+				{
+					"name": "DocumentTypeId inválido",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/documents/pending?documentTypeId=68c0b12ee915eds716f9c3ddd11f7",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"documents",
+								"pending"
+							],
+							"query": [
+								{
+									"key": "documentTypeId",
+									"value": "68c0b12ee915eds716f9c3ddd11f7"
+								}
+							]
+						},
+						"description": "DocumentTypeId com formato inválido (deve retornar 400)."
+					},
+					"response": []
+				},
+				{
+					"name": "JSON malformado",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Maria Santos duplicada\",\n    \"document\": \"123.456.789-01\"\n    \"hiredAt\": \"2025-09-13T05:19:24.187Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						},
+						"description": "JSON com sintaxe inválida (deve retornar 400)."
+					},
+					"response": []
+				}
+			],
+			"description": "Testes de validação e tratamento de erros"
+		},
+		{
+			"name": "Cenários de Filtros e Busca",
+			"item": [
+				{
+					"name": "Filtrar por status - Ativos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees?status=active",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "active"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Lista apenas colaboradores ativos."
+					},
+					"response": []
+				},
+				{
+					"name": "Filtrar por status - Inativos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees?status=inactive",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "inactive"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Lista apenas colaboradores inativos."
+					},
+					"response": []
+				},
+				{
+					"name": "Filtrar por status - Todos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							]
+						},
+						"description": "Lista todos os colaboradores."
+					},
+					"response": []
+				},
+				{
+					"name": "Buscar por CPF",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees/search?query=12345678901",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees",
+								"search"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": "12345678901"
+								}
+							]
+						},
+						"description": "Busca colaborador por CPF."
+					},
+					"response": []
+				},
+				{
+					"name": "Paginação - Primeira página",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees?page=1&limit=5",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "5"
+								}
+							]
+						},
+						"description": "Primeira página com 5 itens."
+					},
+					"response": []
+				},
+				{
+					"name": "Paginação - Segunda página",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/employees?page=2&limit=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"employees"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "2",
+									"description": "pagina 2 caso a tenha"
+								},
+								{
+									"key": "limit",
+									"value": "1",
+									"description": "faz ter 1 registro por pagina"
+								}
+							]
+						},
+						"description": "Segunda página com 5 itens."
+					},
+					"response": []
+				}
+			],
+			"description": "Testes de filtros e funcionalidades de busca"
+		},
+		{
+			"name": "Health check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8083/rest/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8083",
+					"path": [
+						"rest",
+						"health"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8083",
+			"description": "URL base da API"
+		},
+		{
+			"key": "documentTypeId",
+			"value": "507f1f77bcf86cd799439011",
+			"description": "ID do tipo de documento para testes"
+		},
+		{
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "employeeId",
+			"value": "",
+			"type": "default"
+		}
+	]
+}

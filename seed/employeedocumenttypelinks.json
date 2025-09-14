@@ -1,0 +1,229 @@
+[
+  {
+    "_id": { "$oid": "68c10b2f634690a8069f6649" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": false,
+    "createdAt": { "$date": "2025-09-10T05:22:55.12Z" },
+    "updatedAt": { "$date": "2025-09-13T02:08:13.552Z" },
+    "deletedAt": { "$date": "2025-09-13T02:08:13.551Z" }
+  },
+  {
+    "_id": { "$oid": "68c10b2f634690a8069f664b" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T05:22:55.129Z" },
+    "updatedAt": { "$date": "2025-09-10T05:22:55.129Z" }
+  },
+  {
+    "_id": { "$oid": "68c10fe6523c6f6c8bbfe0d5" },
+    "employeeId": { "$oid": "68c101aeb740dd18300c30ea" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T05:43:02.967Z" },
+    "updatedAt": { "$date": "2025-09-10T05:43:02.967Z" }
+  },
+  {
+    "_id": { "$oid": "68c10fe6523c6f6c8bbfe0d7" },
+    "employeeId": { "$oid": "68c101aeb740dd18300c30ea" },
+    "documentTypeId": { "$oid": "68c0a80d495d1e4c81f0a151" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T05:43:02.973Z" },
+    "updatedAt": { "$date": "2025-09-10T05:43:02.973Z" }
+  },
+  {
+    "_id": { "$oid": "68c11459bae43cce26c50e6f" },
+    "employeeId": { "$oid": "68c101bcb740dd18300c30ed" },
+    "documentTypeId": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T06:02:01.973Z" },
+    "updatedAt": { "$date": "2025-09-10T06:02:01.973Z" }
+  },
+  {
+    "_id": { "$oid": "68c11459bae43cce26c50e71" },
+    "employeeId": { "$oid": "68c101bcb740dd18300c30ed" },
+    "documentTypeId": { "$oid": "68c0b159e915e716f9c311fe" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T06:02:01.982Z" },
+    "updatedAt": { "$date": "2025-09-10T06:02:01.982Z" }
+  },
+  {
+    "_id": { "$oid": "68c1e8e653f6f47fc8dca2bf" },
+    "employeeId": { "$oid": "68c101aeb740dd18300c30ea" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T21:08:54.513Z" },
+    "updatedAt": { "$date": "2025-09-10T21:08:54.513Z" }
+  },
+  {
+    "_id": { "$oid": "68c1ed93feded974db9308d2" },
+    "employeeId": { "$oid": "68c101aeb740dd18300c30ea" },
+    "documentTypeId": { "$oid": "68c0a1997d886b802d80219b" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-10T21:28:51.491Z" },
+    "updatedAt": { "$date": "2025-09-10T21:28:51.491Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9204589b4e871006e7" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:06.774Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:06.774Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9204589b4e871006eb" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:06.786Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:06.786Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9204589b4e871006ed" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:06.788Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:06.788Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9d04589b4e871006f2" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:17.347Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:17.347Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9d04589b4e871006f6" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:17.349Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:17.349Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fc9d04589b4e871006f8" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:45:17.35Z" },
+    "updatedAt": { "$date": "2025-09-11T16:45:17.35Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fce704589b4e871006fd" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:46:31.394Z" },
+    "updatedAt": { "$date": "2025-09-11T16:46:31.394Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fce704589b4e87100701" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:46:31.397Z" },
+    "updatedAt": { "$date": "2025-09-11T16:46:31.397Z" }
+  },
+  {
+    "_id": { "$oid": "68c2fce704589b4e87100703" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T16:46:31.398Z" },
+    "updatedAt": { "$date": "2025-09-11T16:46:31.398Z" }
+  },
+  {
+    "_id": { "$oid": "68c30204abc0999c12fbd06b" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c0b24f0529be855310c6ad" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-11T17:08:20.498Z" },
+    "updatedAt": { "$date": "2025-09-11T17:08:20.498Z" }
+  },
+  {
+    "_id": { "$oid": "68c4972780a6d0b9dfd9a7bc" },
+    "employeeId": { "$oid": "68c0fbb9b94a6e7f227a6a5c" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-12T21:56:55.117Z" },
+    "updatedAt": { "$date": "2025-09-12T21:56:55.117Z" }
+  },
+  {
+    "_id": { "$oid": "68c4977a80a6d0b9dfd9a7c8" },
+    "employeeId": { "$oid": "68c101bcb740dd18300c30ed" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-12T21:58:18.887Z" },
+    "updatedAt": { "$date": "2025-09-12T21:58:18.887Z" }
+  },
+  {
+    "_id": { "$oid": "68c4a4ac2fae28f340e15c13" },
+    "employeeId": { "$oid": "68c49e0807f03f213684d613" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": false,
+    "createdAt": { "$date": "2025-09-12T22:54:36.397Z" },
+    "updatedAt": { "$date": "2025-09-13T02:00:41.334Z" },
+    "deletedAt": { "$date": "2025-09-13T02:00:41.334Z" }
+  },
+  {
+    "_id": { "$oid": "68c4a4ac2fae28f340e15c17" },
+    "employeeId": { "$oid": "68c49e0807f03f213684d613" },
+    "documentTypeId": { "$oid": "68c0a80d495d1e4c81f0a151" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-12T22:54:36.406Z" },
+    "updatedAt": { "$date": "2025-09-12T22:54:36.406Z" }
+  },
+  {
+    "_id": { "$oid": "68c4aa99f30d968f3b20db33" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-12T23:19:53.963Z" },
+    "updatedAt": { "$date": "2025-09-12T23:19:53.963Z" }
+  },
+  {
+    "_id": { "$oid": "68c4d279cbb113ea084c56fd" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": false,
+    "createdAt": { "$date": "2025-09-13T02:10:01.722Z" },
+    "updatedAt": { "$date": "2025-09-13T02:10:45.04Z" },
+    "deletedAt": { "$date": "2025-09-13T02:10:45.039Z" }
+  },
+  {
+    "_id": { "$oid": "68c4f3fd8b26f2f01711abcb" },
+    "employeeId": { "$oid": "68c101cbb740dd18300c30f3" },
+    "documentTypeId": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-13T04:33:01.822Z" },
+    "updatedAt": { "$date": "2025-09-13T04:33:01.822Z" }
+  },
+  {
+    "_id": { "$oid": "68c4fe4f358585abda14f9c1" },
+    "employeeId": { "$oid": "68c101c4b740dd18300c30f0" },
+    "documentTypeId": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-13T05:17:03.279Z" },
+    "updatedAt": { "$date": "2025-09-13T05:17:03.279Z" }
+  },
+  {
+    "_id": { "$oid": "68c4fe4f358585abda14f9c5" },
+    "employeeId": { "$oid": "68c101c4b740dd18300c30f0" },
+    "documentTypeId": { "$oid": "68c0a80d495d1e4c81f0a151" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-13T05:17:03.282Z" },
+    "updatedAt": { "$date": "2025-09-13T05:17:03.282Z" }
+  },
+  {
+    "_id": { "$oid": "68c5ebce9d748500370bff8a" },
+    "employeeId": { "$oid": "68c5e9a49d748500370bff7e" },
+    "documentTypeId": { "$oid": "68c0e5717b5fb2e62325bd81" },
+    "active": true,
+    "createdAt": { "$date": "2025-09-13T22:10:22.373Z" },
+    "updatedAt": { "$date": "2025-09-13T22:10:22.373Z" }
+  }
+]
