@@ -194,6 +194,8 @@ describe("DocumentService - Testes Unitários", () => {
         limit: 10,
         total: 0,
         totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
       });
     });
 
@@ -764,6 +766,8 @@ describe("DocumentService - Testes Unitários", () => {
         limit: 10,
         total: 0,
         totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
       });
     });
   });

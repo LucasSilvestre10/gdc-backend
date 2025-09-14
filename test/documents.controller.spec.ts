@@ -63,7 +63,14 @@ describe("Controller de Documentos - Testes Unitários", () => {
           active: true,
         },
       ],
-      pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
     };
 
     it("deve retornar documentos pendentes com parâmetros padrão", async () => {
@@ -121,7 +128,14 @@ describe("Controller de Documentos - Testes Unitários", () => {
       // Arrange
       const emptyResponse = {
         data: [],
-        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
       };
       mockDocumentService.getPendingDocuments.mockResolvedValue(emptyResponse);
 
@@ -216,7 +230,14 @@ describe("Controller de Documentos - Testes Unitários", () => {
           active: true,
         },
       ],
-      pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
+      pagination: {
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
     };
 
     it("deve retornar documentos enviados com parâmetros padrão", async () => {
@@ -273,7 +294,14 @@ describe("Controller de Documentos - Testes Unitários", () => {
       // Arrange
       const emptyResponse = {
         data: [],
-        pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
       };
       mockDocumentService.getSentDocuments.mockResolvedValue(emptyResponse);
 

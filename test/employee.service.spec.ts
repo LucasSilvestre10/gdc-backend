@@ -4,12 +4,26 @@ import { EmployeeNotFoundError } from "../src/exceptions/index";
 
 const sampleEmployee: any = {
   _id: "68c24a4cc85e79937983a83d",
+  id: "68c24a4cc85e79937983a83d" as string,
   name: "João Silva",
   document: "123.456.789-01",
   hiredAt: new Date("2024-01-15T00:00:00.000Z"),
+  requiredDocumentTypes: [],
   isActive: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+};
+
+// DTO esperado pelo service (não inclui `_id`)
+const sampleEmployeeDto = {
+  id: sampleEmployee.id,
+  name: sampleEmployee.name,
+  document: sampleEmployee.document,
+  hiredAt: sampleEmployee.hiredAt,
+  requiredDocumentTypes: sampleEmployee.requiredDocumentTypes,
+  isActive: sampleEmployee.isActive,
+  createdAt: sampleEmployee.createdAt,
+  updatedAt: sampleEmployee.updatedAt,
 };
 
 describe("EmployeeService", () => {
@@ -80,6 +94,21 @@ describe("EmployeeService", () => {
     expect(basicOps.list).toHaveBeenCalled();
   });
 
+  it("toEmployeeResponseDto should default requiredDocumentTypes to empty array when undefined", async () => {
+    const empNoRequired = { ...sampleEmployee };
+    delete empNoRequired.requiredDocumentTypes;
+    basicOps.create.mockResolvedValue(empNoRequired);
+
+    const created = await service.create({
+      name: empNoRequired.name,
+      document: empNoRequired.document,
+      hiredAt: empNoRequired.hiredAt,
+    });
+
+    expect(created).toHaveProperty("requiredDocumentTypes");
+    expect(created.requiredDocumentTypes).toEqual([]);
+  });
+
   it("create should call helpers.processRequiredDocuments when requiredDocuments provided", async () => {
     basicOps.create.mockResolvedValue(sampleEmployee);
     const required = [{ documentTypeId: "dt1", value: "v1" }];
@@ -94,7 +123,7 @@ describe("EmployeeService", () => {
       sampleEmployee._id,
       required
     );
-    expect(created).toEqual(sampleEmployee);
+    expect(created).toEqual(sampleEmployeeDto);
   });
 
   it("create should not call helpers.processRequiredDocuments when none provided", async () => {
@@ -106,7 +135,7 @@ describe("EmployeeService", () => {
     });
     expect(basicOps.create).toHaveBeenCalled();
     expect(helpers.processRequiredDocuments).not.toHaveBeenCalled();
-    expect(created).toEqual(sampleEmployee);
+    expect(created).toEqual(sampleEmployeeDto);
   });
 
   it("restoreDocumentTypeLink should throw when employee not found", async () => {

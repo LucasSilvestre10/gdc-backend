@@ -170,9 +170,9 @@ describe("EmployeesController", () => {
 
     // paginação usa defaults (page=1, limit=20)
     expect(payload.pagination.page).toBe(1);
-    expect(payload.pagination.limit).toBe(20);
+    expect(payload.pagination.limit).toBe(10);
     expect(payload.pagination.total).toBe(3);
-    expect(payload.pagination.totalPages).toBe(Math.ceil(3 / 20));
+    expect(payload.pagination.totalPages).toBe(Math.ceil(3 / 10));
   });
 
   it("findById deve lançar NotFound quando não existir", async () => {

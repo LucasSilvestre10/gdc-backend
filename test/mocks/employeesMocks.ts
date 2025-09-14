@@ -102,6 +102,8 @@ export const employeesListMock = {
     limit: 20,
     total: 10,
     totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
   },
 };
 
