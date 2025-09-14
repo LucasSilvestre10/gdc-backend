@@ -57,7 +57,109 @@ export class DocumentTypeService {
       description: dto.description?.trim() || "",
     };
 
-    return await this.documentTypeRepository.create(documentTypeData);
+    const created = await this.documentTypeRepository.create(documentTypeData);
+
+    // Mapear para um DTO simples (sem lógica na controller)
+    // extrair id de várias possíveis localizações (id, _id, _doc._id, objeto plain)
+    const extractId = (obj: unknown): string | null => {
+      if (!obj) return null;
+      try {
+        const o = obj as Record<string, unknown>;
+        if (o["id"]) return String(o["id"]);
+        if (o["_id"]) {
+          const raw = o["_id"] as unknown;
+          if (
+            raw &&
+            typeof (raw as { toHexString?: unknown }).toHexString === "function"
+          ) {
+            return (raw as { toHexString: () => string }).toHexString();
+          }
+          if (Buffer.isBuffer(raw as Buffer))
+            return (raw as Buffer).toString("hex");
+          return String(raw);
+        }
+        // Mongoose pode armazenar dados em _doc
+        if (o["_doc"] && (o["_doc"] as Record<string, unknown>)["_id"]) {
+          const raw = (o["_doc"] as Record<string, unknown>)["_id"] as unknown;
+          if (
+            raw &&
+            typeof (raw as { toHexString?: unknown }).toHexString === "function"
+          ) {
+            return (raw as { toHexString: () => string }).toHexString();
+          }
+          if (Buffer.isBuffer(raw as Buffer))
+            return (raw as Buffer).toString("hex");
+          return String(raw);
+        }
+        // tentar toObject()
+        if (
+          typeof (obj as unknown as { toObject?: unknown }).toObject ===
+          "function"
+        ) {
+          const toObject = (
+            obj as unknown as {
+              toObject: (opts?: unknown) => Record<string, unknown>;
+            }
+          ).toObject;
+          const plain = toObject({ virtuals: true }) as Record<
+            string,
+            unknown
+          > | null;
+          if (plain) {
+            if (plain["id"]) return String(plain["id"]);
+            if (plain["_id"]) {
+              const raw = plain["_id"] as unknown;
+              if (
+                raw &&
+                typeof (raw as { toHexString?: unknown }).toHexString ===
+                  "function"
+              ) {
+                return (raw as { toHexString: () => string }).toHexString();
+              }
+              if (Buffer.isBuffer(raw as Buffer))
+                return (raw as Buffer).toString("hex");
+              return String(raw);
+            }
+          }
+        }
+      } catch {
+        // fallback silencioso
+      }
+      return null;
+    };
+
+    const idValue = extractId(created);
+
+    const createdRec = created as unknown as Record<string, unknown>;
+    const nameVal =
+      createdRec && createdRec["name"]
+        ? String(createdRec["name"])
+        : documentTypeData.name;
+    const descriptionVal =
+      createdRec && createdRec["description"]
+        ? String(createdRec["description"])
+        : documentTypeData.description;
+    // Garantir isActive booleano: se retorno do repositório trouxer isActive, usar; caso contrário, assumir true por padrão
+    const isActiveVal = (() => {
+      try {
+        if (
+          createdRec &&
+          Object.prototype.hasOwnProperty.call(createdRec, "isActive")
+        ) {
+          return Boolean(createdRec["isActive"]);
+        }
+      } catch {
+        // fallback
+      }
+      return true;
+    })();
+
+    return {
+      id: idValue,
+      name: nameVal,
+      description: descriptionVal,
+      isActive: isActiveVal,
+    } as unknown as DocumentType;
   }
 
   // TODO: Implementar outros métodos (list, findById, update, delete) quando necessário

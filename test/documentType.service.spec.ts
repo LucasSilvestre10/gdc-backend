@@ -78,7 +78,7 @@ describe("DocumentTypeService", () => {
       };
 
       const expectedResult = {
-        _id: "generated-id",
+        id: "generated-id",
         name: "CPF",
         description: "Cadastro de Pessoa Física",
         isActive: true,
@@ -156,6 +156,275 @@ describe("DocumentTypeService", () => {
         name: "RG",
         description: "",
       });
+    });
+
+    it("extrai id quando _id possui toHexString()", async () => {
+      const inputDto = { name: "CNH" };
+      const created = {
+        _id: { toHexString: () => "hex-id-1" },
+        name: "CNH",
+        description: "Documento",
+        isActive: false,
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("hex-id-1");
+      expect(result.isActive).toBe(false);
+      expect(result.name).toBe("CNH");
+    });
+
+    it("extrai id quando _id é Buffer", async () => {
+      const inputDto = { name: "NIS" };
+      const buf = Buffer.from("abcd", "utf8");
+      const created = {
+        _id: buf,
+        name: "NIS",
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(buf.toString("hex"));
+      expect(result.isActive).toBe(true); // default quando não fornecido
+    });
+
+    it("extrai id quando objeto possui _doc._id", async () => {
+      const inputDto = { name: "PASS" };
+      const created = {
+        _doc: { _id: "inner-id" },
+        name: "PASS",
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("inner-id");
+      expect(result.name).toBe("PASS");
+    });
+
+    it("extrai id a partir de toObject() plain", async () => {
+      const inputDto = { name: "RG2" };
+      const created = {
+        toObject: () => ({ _id: "plain-id", name: "RG2" }),
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("plain-id");
+      expect(result.name).toBe("RG2");
+    });
+
+    it("retorna id null quando toObject lança erro e não encontra campos", async () => {
+      const inputDto = { name: "X1" };
+      const created = {
+        toObject: () => {
+          throw new Error("boom");
+        },
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBeNull();
+      expect(result.isActive).toBe(true);
+    });
+
+    it("extrai id quando objeto possui 'id' direto", async () => {
+      const inputDto = { name: "DIRECT" };
+      const created = { id: "direct-123", name: "DIRECT" };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("direct-123");
+      expect(result.name).toBe("DIRECT");
+    });
+
+    it("extrai id quando _doc._id possui toHexString()", async () => {
+      const inputDto = { name: "DOCHEX" };
+      const created = {
+        _doc: { _id: { toHexString: () => "doc-hex-99" } },
+        name: "DOCHEX",
+        isActive: true,
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("doc-hex-99");
+      expect(result.isActive).toBe(true);
+    });
+
+    it("extrai id quando toObject() retorna _id com toHexString()", async () => {
+      const inputDto = { name: "TOHEX" };
+      const created = {
+        toObject: () => ({ _id: { toHexString: () => "plain-hex-77" } }),
+        name: "TOHEX",
+      };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("plain-hex-77");
+    });
+
+    it("usa propriedade isActive quando presente e falsy (0)", async () => {
+      const inputDto = { name: "FALSY" };
+      const created = { _id: "falsy-id", isActive: 0 } as any;
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("falsy-id");
+      expect(result.isActive).toBe(false);
+    });
+
+    it("cai no catch ao ler isActive e usa fallback true", async () => {
+      const inputDto = { name: "CATCHY" };
+      const created: any = { _id: "catch-id" };
+      Object.defineProperty(created, "isActive", {
+        get: () => {
+          throw new Error("getter boom");
+        },
+        configurable: true,
+      });
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      // getter throws => fallback true
+      expect((result as any).id).toBe("catch-id");
+      expect(result.isActive).toBe(true);
+    });
+
+    it("retorna id null quando repository.create retorna null", async () => {
+      const inputDto = { name: "NULLTEST" };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(null);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBeNull();
+      expect(result.name).toBe("NULLTEST");
+      expect(result.description).toBe("");
+      expect(result.isActive).toBe(true);
+    });
+
+    it("converte _id cru (objeto) usando String(raw)", async () => {
+      const inputDto = { name: "OBJID" };
+      const raw = { foo: "bar" };
+      const created = { _id: raw };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(String(raw));
+    });
+
+    it("converte _doc._id cru (objeto) usando String(raw)", async () => {
+      const inputDto = { name: "OBJDOC" };
+      const raw = { a: 1 };
+      const created = { _doc: { _id: raw } };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(String(raw));
+    });
+
+    it("converte toObject() plain _id cru (objeto) usando String(raw)", async () => {
+      const inputDto = { name: "OBJTO" };
+      const raw = { x: 2 };
+      const created = { toObject: () => ({ _id: raw }) };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(String(raw));
+    });
+
+    it("extrai id quando _doc._id é Buffer", async () => {
+      const inputDto = { name: "DOCBUF" };
+      const buf = Buffer.from("buffer-doc", "utf8");
+      const created = { _doc: { _id: buf } };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(buf.toString("hex"));
+    });
+
+    it("extrai id quando toObject() retorna _id como Buffer", async () => {
+      const inputDto = { name: "TOBUF" };
+      const buf = Buffer.from("buffer-toobj", "utf8");
+      const created = { toObject: () => ({ _id: buf }) };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe(buf.toString("hex"));
+    });
+
+    it("extrai id quando _id é string simples", async () => {
+      const inputDto = { name: "SIMPLE" };
+      const created = { _id: "simple-id" };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("simple-id");
+      // quando created não traz name/description devemos usar os valores padronizados
+      expect(result.name).toBe("SIMPLE");
+      expect(result.description).toBe("");
+    });
+
+    it("extrai 'id' quando toObject() retorna plain com id", async () => {
+      const inputDto = { name: "TOOBJ" };
+      const created = { toObject: () => ({ id: "toobj-id", name: "TOOBJ" }) };
+
+      mockDocumentTypeRepository.findByName.mockResolvedValue(null);
+      mockDocumentTypeRepository.create.mockResolvedValue(created);
+
+      const result = await service.create(inputDto);
+
+      expect((result as any).id).toBe("toobj-id");
+      expect(result.name).toBe("TOOBJ");
     });
   });
 

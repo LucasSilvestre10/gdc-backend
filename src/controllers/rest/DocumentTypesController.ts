@@ -8,9 +8,33 @@ import { ResponseHandler } from "../../middleware/ResponseHandler";
 import { PaginationUtils } from "../../utils/PaginationUtils";
 import {
   CreateDocumentTypeDto,
+  DocumentTypeResponseDto,
   UpdateDocumentTypeDto,
 } from "../../dtos/documentTypeDTO.js";
+import { PaginatedResponseDto } from "../../dtos/paginationDTO";
+import {
+  DOC_TYPE_CREATE_DESCRIPTION,
+  DOC_TYPE_CREATE_EXAMPLE,
+  DOC_TYPE_CREATE_RESPONSE_EXAMPLE,
+  DOC_TYPE_LIST_DESCRIPTION,
+  DOC_TYPE_LIST_QUERY_PARAMS,
+  DOC_TYPE_LIST_EXAMPLE,
+  DOC_TYPE_GET_BY_ID_DESCRIPTION,
+  DOC_TYPE_GET_BY_ID_EXAMPLE,
+  DOC_TYPE_UPDATE_DESCRIPTION,
+  DOC_TYPE_UPDATE_EXAMPLE,
+  DOC_TYPE_UPDATE_EXAMPLE_RESPONSE,
+  DOC_TYPE_DELETE_DESCRIPTION,
+  DOC_TYPE_DELETE_EXAMPLE,
+  DOC_TYPE_RESTORE_DESCRIPTION,
+  DOC_TYPE_RESTORE_EXAMPLE,
+  DOC_TYPE_LINKED_EMPLOYEES_DESCRIPTION,
+  DOC_TYPE_LINKED_EMPLOYEES_QUERY_PARAMS,
+  DOC_TYPE_LINKED_EMPLOYEES_EXAMPLE,
+} from "../../docs/swagger/documentTypes";
+
 import { DocumentTypeService } from "../../services/DocumentTypeService.js";
+import { DOC_TYPE_OBJECT_ID_DESCRIPTION } from "../../docs/swagger/common";
 
 /**
  * Controller responsável por gerenciar os tipos de documento.
@@ -45,15 +69,16 @@ export class DocumentTypesController {
    */
   @Post("/")
   @Summary("Criar novo tipo de documento")
-  @Description("Cria um novo tipo de documento no sistema")
-  @Returns(201, Object)
-  @Returns(400, Object)
-  @Returns(409, Object)
-  @Example({
-    name: "CPF",
-    description: "Cadastro de Pessoa Física",
-  })
-  async create(@BodyParams() createDto: CreateDocumentTypeDto) {
+  @Description(DOC_TYPE_CREATE_DESCRIPTION)
+  @Example(DOC_TYPE_CREATE_RESPONSE_EXAMPLE)
+  @Returns(201, DocumentTypeResponseDto)
+  @Returns(400)
+  @Returns(409)
+  async create(
+    @Example(DOC_TYPE_CREATE_EXAMPLE)
+    @BodyParams()
+    createDto: CreateDocumentTypeDto
+  ) {
     const documentType = await this.documentTypeService.create(createDto);
     return ResponseHandler.success(
       documentType,
@@ -72,31 +97,9 @@ export class DocumentTypesController {
    */
   @Get("/")
   @Summary("Listar tipos de documento")
-  @Description(
-    "Lista tipos de documento com filtros: name (busca parcial), status (active/inactive/all). Por padrão retorna apenas registros ativos."
-  )
-  @Example({
-    success: true,
-    data: [
-      {
-        _id: "507f1f77bcf86cd799439011",
-        name: "CPF",
-        description: "Cadastro de Pessoa Física",
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ],
-    pagination: {
-      page: 1,
-      limit: 10,
-      total: 1,
-      totalPages: 1,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    },
-  })
-  @Returns(200, Array)
+  @Description(`${DOC_TYPE_LIST_DESCRIPTION}\n\n${DOC_TYPE_LIST_QUERY_PARAMS}`)
+  @Example(DOC_TYPE_LIST_EXAMPLE)
+  @Returns(200, PaginatedResponseDto)
   async list(
     @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT,
@@ -137,11 +140,14 @@ export class DocumentTypesController {
    */
   @Get("/:id")
   @Summary("Buscar tipo de documento por ID")
-  @Description("Retorna os dados de um tipo de documento específico")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  async findById(@PathParams("id") id: string) {
+  @Description(DOC_TYPE_GET_BY_ID_DESCRIPTION)
+  @Example(DOC_TYPE_GET_BY_ID_EXAMPLE)
+  @Returns(200, DocumentTypeResponseDto)
+  @Returns(404)
+  @Returns(400)
+  async findById(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION) @PathParams("id") id: string
+  ) {
     const documentType = await this.documentTypeService.findById(id);
     if (!documentType) {
       throw new NotFound("Tipo de documento não encontrado");
@@ -163,18 +169,19 @@ export class DocumentTypesController {
    */
   @Put("/:id")
   @Summary("Atualizar tipo de documento")
-  @Description("Atualiza os dados de um tipo de documento")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  @Returns(409, Object)
-  @Example({
-    name: "RG",
-    description: "Registro Geral",
-  })
+  @Description(DOC_TYPE_UPDATE_DESCRIPTION)
+  @Example(DOC_TYPE_UPDATE_EXAMPLE_RESPONSE)
+  @Returns(200, DocumentTypeResponseDto)
+  @Returns(404)
+  @Returns(400)
+  @Returns(409)
   async update(
-    @PathParams("id") id: string,
-    @BodyParams() updateDto: UpdateDocumentTypeDto
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
+    @Example(DOC_TYPE_UPDATE_EXAMPLE)
+    @BodyParams()
+    updateDto: UpdateDocumentTypeDto
   ) {
     const documentType = await this.documentTypeService.update(id, updateDto);
     if (!documentType) {
@@ -195,11 +202,14 @@ export class DocumentTypesController {
    */
   @Delete("/:id")
   @Summary("Remover tipo de documento")
-  @Description("Remove um tipo de documento do sistema (soft delete)")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  async delete(@PathParams("id") id: string) {
+  @Description(DOC_TYPE_DELETE_DESCRIPTION)
+  @Example(DOC_TYPE_DELETE_EXAMPLE)
+  @Returns(200, DocumentTypeResponseDto)
+  @Returns(404)
+  @Returns(400)
+  async delete(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION) @PathParams("id") id: string
+  ) {
     const deleted = await this.documentTypeService.delete(id);
     if (!deleted) {
       throw new NotFound("Tipo de documento não encontrado");
@@ -219,11 +229,14 @@ export class DocumentTypesController {
    */
   @Post("/:id/restore")
   @Summary("Reativar tipo de documento")
-  @Description("Reativa um tipo de documento desativado")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  async restore(@PathParams("id") id: string) {
+  @Description(DOC_TYPE_RESTORE_DESCRIPTION)
+  @Example(DOC_TYPE_RESTORE_EXAMPLE)
+  @Returns(200, DocumentTypeResponseDto)
+  @Returns(404)
+  @Returns(400)
+  async restore(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION) @PathParams("id") id: string
+  ) {
     const restored = await this.documentTypeService.restore(id);
     if (!restored) {
       throw new NotFound("Tipo de documento não encontrado");
@@ -244,13 +257,16 @@ export class DocumentTypesController {
   @Get("/:id/employees")
   @Summary("Listar colaboradores vinculados ao tipo de documento")
   @Description(
-    "Retorna todos os colaboradores que têm este tipo de documento como obrigatório"
+    `${DOC_TYPE_LINKED_EMPLOYEES_DESCRIPTION}\n\n${DOC_TYPE_LINKED_EMPLOYEES_QUERY_PARAMS}`
   )
-  @Returns(200, Array)
-  @Returns(404, Object)
-  @Returns(400, Object)
+  @Example(DOC_TYPE_LINKED_EMPLOYEES_EXAMPLE)
+  @Returns(200, PaginatedResponseDto)
+  @Returns(404)
+  @Returns(400)
   async getLinkedEmployees(
-    @PathParams("id") id: string,
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
     @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT
   ) {

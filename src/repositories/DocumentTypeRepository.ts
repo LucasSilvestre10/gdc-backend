@@ -58,7 +58,45 @@ export class DocumentTypeRepository {
       // Usa create diretamente - mais simples e direto
       const result = await this.documentTypeModel.create(documentTypeData);
 
-      return result.toJSON(); // Converte para objeto simples
+      // Converter para objeto plano e garantir que _id/id sejam strings legíveis
+      try {
+        const plain = (result as unknown as { toObject?: unknown }).toObject
+          ? (
+              result as unknown as {
+                toObject: (opts?: unknown) => Record<string, unknown>;
+              }
+            ).toObject({ virtuals: true })
+          : result.toJSON();
+
+        // extrair id legível do _id se existir
+        if (plain && plain._id) {
+          try {
+            const raw = plain._id as unknown;
+            if (
+              raw &&
+              typeof (raw as { toHexString?: unknown }).toHexString ===
+                "function"
+            ) {
+              (plain as Record<string, unknown>)["id"] = (
+                raw as { toHexString: () => string }
+              ).toHexString();
+            } else if (Buffer.isBuffer(raw as Buffer)) {
+              (plain as Record<string, unknown>)["id"] = (
+                raw as Buffer
+              ).toString("hex");
+            } else {
+              (plain as Record<string, unknown>)["id"] = String(raw);
+            }
+          } catch {
+            (plain as Record<string, unknown>)["id"] = undefined;
+          }
+        }
+
+        return plain as unknown as DocumentType;
+      } catch (_err) {
+        // fallback: retornar toJSON
+        return result.toJSON();
+      }
     } catch (error) {
       console.error("DocumentTypeRepository.create - Error:", error);
       console.error(
@@ -159,7 +197,7 @@ export class DocumentTypeRepository {
    * @returns Promise<{ items: DocumentType[]; total: number }> - Lista paginada e total de registros
    */
   async list(
-    filter: Record<string, any> = {},
+    filter: Record<string, unknown> = {},
     options: { page?: number; limit?: number; includeInactive?: boolean } = {}
   ): Promise<{ items: DocumentType[]; total: number }> {
     try {
@@ -173,7 +211,7 @@ export class DocumentTypeRepository {
       );
 
       // Processa filtros especiais
-      const processedFilter: Record<string, any> = {};
+      const processedFilter: Record<string, unknown> = {};
 
       // Se houver filtro por name, converte para busca case-insensitive e parcial
       if (cleanFilter.name && typeof cleanFilter.name === "string") {

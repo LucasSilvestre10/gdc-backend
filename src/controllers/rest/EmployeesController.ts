@@ -1,5 +1,5 @@
 import { Controller } from "@tsed/di";
-import { Get, Post, Put, Patch, Delete } from "@tsed/schema";
+import { Get, Post, Put, Patch, Delete, Example } from "@tsed/schema";
 import { PathParams, BodyParams, QueryParams } from "@tsed/platform-params";
 import { Returns, Summary, Description } from "@tsed/schema";
 import { Inject } from "@tsed/di";
@@ -8,13 +8,50 @@ import { ResponseHandler } from "../../middleware/ResponseHandler";
 import { MappingUtils } from "../../utils/MappingUtils";
 import { PaginationUtils } from "../../utils/PaginationUtils";
 import {
+  EMP_CREATE_DESCRIPTION,
+  EMP_CREATE_EXAMPLE_REQUEST,
+  EMP_CREATE_EXAMPLE_RESPONSE,
+  EMP_LIST_DESCRIPTION,
+  EMP_LIST_EXAMPLE,
+  EMP_SEARCH_DESCRIPTION,
+  EMP_SEARCH_EXAMPLE,
+  EMP_FIND_BY_ID_DESCRIPTION,
+  EMP_FIND_BY_ID_EXAMPLE,
+  EMP_UPDATE_DESCRIPTION,
+  EMP_UPDATE_REQUEST_EXAMPLE,
+  EMP_UPDATE_RESPONSE_EXAMPLE,
+  EMP_DELETE_DESCRIPTION,
+  EMP_DELETE_EXAMPLE,
+  EMP_LINK_DOCS_DESCRIPTION,
+  EMP_LINK_DOCS_REQUEST_EXAMPLE,
+  EMP_LINK_DOCS_RESPONSE_EXAMPLE,
+  EMP_REQUIRED_DOCS_LIST_DESCRIPTION,
+  EMP_REQUIRED_DOCS_LIST_EXAMPLE,
+  EMP_UNLINK_DOC_DESCRIPTION,
+  EMP_UNLINK_DOC_EXAMPLE,
+  EMP_SEND_DOCUMENT_DESCRIPTION,
+  EMP_SEND_DOCUMENT_REQUEST_EXAMPLE,
+  EMP_SEND_DOCUMENT_RESPONSE_EXAMPLE,
+  EMP_SENT_DOCS_LIST_DESCRIPTION,
+  EMP_SENT_DOCS_LIST_EXAMPLE,
+  EMP_PENDING_DOCS_LIST_DESCRIPTION,
+  EMP_PENDING_DOCS_LIST_EXAMPLE,
+  EMP_DOCUMENTATION_OVERVIEW_DESCRIPTION,
+  EMP_DOCUMENTATION_OVERVIEW_EXAMPLE,
+  EMP_RESTORE_DOC_LINK_DESCRIPTION,
+  EMP_RESTORE_DOC_LINK_EXAMPLE,
+  EMP_RESTORE_DESCRIPTION,
+  EMP_RESTORE_EXAMPLE,
+} from "../../docs/swagger/employees";
+import { DOC_TYPE_OBJECT_ID_DESCRIPTION } from "../../docs/swagger/common";
+import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
   LinkDocumentTypesDto,
   DocumentationStatusResponseDto,
-  PaginatedResponseDto,
   StatusFilterDto,
 } from "../../dtos/employeeDTO";
+import { PaginatedResponseDto } from "../../dtos/paginationDTO";
 import { EmployeeSearchResponseDto } from "../../dtos/employeeResponseDTO";
 import { EmployeeService } from "../../services/EmployeeService";
 
@@ -56,10 +93,15 @@ export class EmployeesController {
    */
   @Post("/")
   @Summary("Criar novo colaborador")
-  @Description("Cria um novo colaborador no sistema")
+  @Description(EMP_CREATE_DESCRIPTION)
+  @Example(EMP_CREATE_EXAMPLE_RESPONSE)
   @Returns(201, Object)
-  @Returns(400, Object)
-  async create(@BodyParams() createDto: CreateEmployeeDto) {
+  @Returns(400)
+  async create(
+    @Example(EMP_CREATE_EXAMPLE_REQUEST)
+    @BodyParams()
+    createDto: CreateEmployeeDto
+  ) {
     const employee = await this.employeeService.create(createDto);
     return ResponseHandler.success(employee, "Colaborador criado com sucesso");
   }
@@ -72,9 +114,8 @@ export class EmployeesController {
    */
   @Get("/")
   @Summary("Listar colaboradores")
-  @Description(
-    "Lista todos os colaboradores com paginação. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`)."
-  )
+  @Description(EMP_LIST_DESCRIPTION)
+  @Example(EMP_LIST_EXAMPLE)
   @Returns(200, PaginatedResponseDto)
   async list(
     @QueryParams("status") status: string = EmployeesController.DEFAULT_STATUS,
@@ -120,10 +161,9 @@ export class EmployeesController {
    */
   @Get("/search")
   @Summary("Buscar colaboradores por nome ou CPF")
-  @Description(
-    '"Query" Busca colaboradores por nome (case-insensitive) ou CPF (busca exata). Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`).'
-  )
-  @Returns(200, Object)
+  @Description(EMP_SEARCH_DESCRIPTION)
+  @Example(EMP_SEARCH_EXAMPLE)
+  @Returns(200, EmployeeSearchResponseDto)
   async searchEmployees(
     @QueryParams("query") query: string,
     @QueryParams() filters: StatusFilterDto
@@ -166,10 +206,15 @@ export class EmployeesController {
    */
   @Get("/:id")
   @Summary("Buscar colaborador por ID")
-  @Description("Retorna os dados completos de um colaborador específico")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  async findById(@PathParams("id") id: string) {
+  @Description(EMP_FIND_BY_ID_DESCRIPTION)
+  @Example(EMP_FIND_BY_ID_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
+  async findById(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string
+  ) {
     const employee = await this.employeeService.findById(id);
     if (!employee) {
       throw new NotFound("Colaborador não encontrado");
@@ -182,14 +227,17 @@ export class EmployeesController {
 
   @Put("/:id")
   @Summary("Atualizar colaborador")
-  @Description("Atualiza os dados de um colaborador")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  @Returns(409, Object)
+  @Description(EMP_UPDATE_DESCRIPTION)
+  @Example(EMP_UPDATE_RESPONSE_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
+  @Returns(400)
+  @Returns(409)
   async update(
     @PathParams("id") id: string,
-    @BodyParams() updateDto: UpdateEmployeeDto
+    @Example(EMP_UPDATE_REQUEST_EXAMPLE)
+    @BodyParams()
+    updateDto: UpdateEmployeeDto
   ) {
     const employee = await this.employeeService.updateEmployee(id, updateDto);
 
@@ -212,11 +260,16 @@ export class EmployeesController {
    */
   @Delete("/:id")
   @Summary("Remover colaborador")
-  @Description("Remove um colaborador do sistema (soft delete)")
-  @Returns(200, Object)
-  @Returns(404, Object)
-  @Returns(400, Object)
-  async delete(@PathParams("id") id: string) {
+  @Description(EMP_DELETE_DESCRIPTION)
+  @Example(EMP_DELETE_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
+  @Returns(400)
+  async delete(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string
+  ) {
     const deleted = await this.employeeService.delete(id);
     if (!deleted) {
       throw new NotFound("Colaborador não encontrado");
@@ -233,14 +286,17 @@ export class EmployeesController {
    */
   @Post("/:id/required-documents")
   @Summary("Vincular tipos de documento ao colaborador")
-  @Description(
-    "Vincula um ou mais tipos de documento obrigatórios ao colaborador"
-  )
-  @Returns(200, Object)
-  @Returns(404, Object)
+  @Description(EMP_LINK_DOCS_DESCRIPTION)
+  @Example(EMP_LINK_DOCS_RESPONSE_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
   async linkDocumentTypes(
-    @PathParams("id") id: string,
-    @BodyParams() linkDto: LinkDocumentTypesDto
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
+    @Example(EMP_LINK_DOCS_REQUEST_EXAMPLE)
+    @BodyParams()
+    linkDto: LinkDocumentTypesDto
   ) {
     await this.employeeService.linkDocumentTypes(id, linkDto.documentTypeIds);
     return ResponseHandler.success(
@@ -258,14 +314,17 @@ export class EmployeesController {
    */
   @Delete("/:id/required-documents/:documentTypeId")
   @Summary("Desvincular tipo de documento do colaborador")
-  @Description(
-    "Desvincula um tipo de documento específico do colaborador (soft delete)"
-  )
-  @Returns(200, Object)
-  @Returns(404, Object)
+  @Description(EMP_UNLINK_DOC_DESCRIPTION)
+  @Example(EMP_UNLINK_DOC_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
   async unlinkDocumentType(
-    @PathParams("id") id: string,
-    @PathParams("documentTypeId") documentTypeId: string
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("documentTypeId")
+    documentTypeId: string
   ) {
     await this.employeeService.unlinkDocumentTypes(id, [documentTypeId]);
     return ResponseHandler.success(
@@ -284,15 +343,22 @@ export class EmployeesController {
    */
   @Post("/:id/documents/:documentTypeId")
   @Summary("Enviar documento do colaborador")
-  @Description("Envia um documento específico do colaborador")
-  @Returns(201, Object)
-  @Returns(400, Object)
-  @Returns(404, Object)
-  @Returns(409, Object)
+  @Description(EMP_SEND_DOCUMENT_DESCRIPTION)
+  @Example(EMP_SEND_DOCUMENT_RESPONSE_EXAMPLE)
+  @Returns(201)
+  @Returns(400)
+  @Returns(404)
+  @Returns(409)
   async sendDocument(
-    @PathParams("id") id: string,
-    @PathParams("documentTypeId") documentTypeId: string,
-    @BodyParams("value") value: string
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("documentTypeId")
+    documentTypeId: string,
+    @Example(EMP_SEND_DOCUMENT_REQUEST_EXAMPLE)
+    @BodyParams("value")
+    value: string
   ) {
     const document = await this.employeeService.sendDocument(
       id,
@@ -310,12 +376,15 @@ export class EmployeesController {
    */
   @Get("/:id/documents/sent")
   @Summary("Listar documentos enviados")
-  @Description(
-    "Lista apenas os documentos que foram enviados pelo colaborador (status: SENT)"
-  )
-  @Returns(200, Object)
-  @Returns(404, Object)
-  async getSentDocuments(@PathParams("id") id: string) {
+  @Description(EMP_SENT_DOCS_LIST_DESCRIPTION)
+  @Example(EMP_SENT_DOCS_LIST_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
+  async getSentDocuments(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string
+  ) {
     const employee = await this.employeeService.findById(id);
     if (!employee) {
       throw new NotFound("Colaborador não encontrado");
@@ -348,12 +417,13 @@ export class EmployeesController {
    */
   @Get("/:id/documents/pending")
   @Summary("Listar documentos pendentes")
-  @Description(
-    "Lista apenas os documentos que estão pendentes de envio pelo colaborador (status: PENDING)"
-  )
-  @Returns(200, Object)
-  @Returns(404, Object)
-  async getPendingDocuments(@PathParams("id") id: string) {
+  @Description(EMP_PENDING_DOCS_LIST_DESCRIPTION)
+  @Example(EMP_PENDING_DOCS_LIST_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
+  async getPendingDocuments(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION) @PathParams("id") id: string
+  ) {
     const employee = await this.employeeService.findById(id);
     if (!employee) {
       throw new NotFound("Colaborador não encontrado");
@@ -386,12 +456,15 @@ export class EmployeesController {
    */
   @Get("/:id/documentation")
   @Summary("Overview da documentação do colaborador")
-  @Description(
-    "Retorna visão completa da documentação obrigatória do colaborador, incluindo enviados e pendentes"
-  )
+  @Description(EMP_DOCUMENTATION_OVERVIEW_DESCRIPTION)
+  @Example(EMP_DOCUMENTATION_OVERVIEW_EXAMPLE)
   @Returns(200, DocumentationStatusResponseDto)
-  @Returns(404, Object)
-  async getDocumentationOverview(@PathParams("id") id: string) {
+  @Returns(404)
+  async getDocumentationOverview(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string
+  ) {
     const employee = await this.employeeService.findById(id);
     if (!employee) {
       throw new NotFound("Colaborador não encontrado");
@@ -431,12 +504,17 @@ export class EmployeesController {
    */
   @Patch("/:id/required-documents/:documentTypeId/restore")
   @Summary("Restaurar vínculo de tipo de documento")
-  @Description("Restaura um vínculo de tipo de documento desvinculado")
-  @Returns(200, Object)
-  @Returns(404, Object)
+  @Description(EMP_RESTORE_DOC_LINK_DESCRIPTION)
+  @Example(EMP_RESTORE_DOC_LINK_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
   async restoreDocumentTypeLink(
-    @PathParams("id") id: string,
-    @PathParams("documentTypeId") documentTypeId: string
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("documentTypeId")
+    documentTypeId: string
   ) {
     await this.employeeService.restoreDocumentTypeLink(id, documentTypeId);
     return ResponseHandler.success(
@@ -454,13 +532,14 @@ export class EmployeesController {
    */
   @Get("/:id/required-documents")
   @Summary("Listar vínculos de tipos de documento")
-  @Description(
-    "Lista os vínculos de tipos de documento do colaborador. Parâmetro `status` aceita: `active`, `inactive`, `all` (default: `all`)."
-  )
-  @Returns(200, Array)
-  @Returns(404, Object)
+  @Description(EMP_REQUIRED_DOCS_LIST_DESCRIPTION)
+  @Example(EMP_REQUIRED_DOCS_LIST_EXAMPLE)
+  @Returns(200)
+  @Returns(404)
   async getRequiredDocuments(
-    @PathParams("id") id: string,
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string,
     @QueryParams("status") status: string = "all"
   ) {
     const requiredDocuments =
@@ -480,10 +559,15 @@ export class EmployeesController {
    */
   @Patch("/:id/restore")
   @Summary("Reativar colaborador")
-  @Description("Reativa um colaborador desativado")
+  @Description(EMP_RESTORE_DESCRIPTION)
+  @Example(EMP_RESTORE_EXAMPLE)
   @Returns(200, Object)
   @Returns(404, Object)
-  async restore(@PathParams("id") id: string) {
+  async restore(
+    @Example(DOC_TYPE_OBJECT_ID_DESCRIPTION)
+    @PathParams("id")
+    id: string
+  ) {
     const restored = await this.employeeService.restore(id);
     if (!restored) {
       throw new NotFound("Colaborador não encontrado");

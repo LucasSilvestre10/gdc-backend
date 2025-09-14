@@ -4,42 +4,20 @@
 
 > Cobertura de testes: o fluxo da API está 100% coberto (veja o resumo abaixo).
 
-<details>
-
-```
-
- % Coverage report from v8
-----------------------------------------|---------|----------|---------|---------|-------------------
-File                                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
-----------------------------------------|---------|----------|---------|---------|-------------------
-All files                               |     100 |      100 |     100 |     100 |
- controllers/rest                       |     100 |      100 |     100 |     100 |
-  DocumentTypesController.ts            |     100 |      100 |     100 |     100 |
-  DocumentsController.ts                |     100 |      100 |     100 |     100 |
-  EmployeesController.ts                |     100 |      100 |     100 |     100 |
- repositories                           |     100 |      100 |     100 |     100 |
-  DocumentRepository.ts                 |     100 |      100 |     100 |     100 |
-  DocumentTypeRepository.ts             |     100 |      100 |     100 |     100 |
-  EmployeeDocumentTypeLinkRepository.ts |     100 |      100 |     100 |     100 |
-  EmployeeRepository.ts                 |     100 |      100 |     100 |     100 |
- services                               |     100 |      100 |     100 |     100 |
-  DocumentService.ts                    |     100 |      100 |     100 |     100 |
-  DocumentTypeService.ts                |     100 |      100 |     100 |     100 |
-  EmployeeService.ts                    |     100 |      100 |     100 |     100 |
- services/employee                      |     100 |      100 |     100 |     100 |
-  EmployeeBasicOperationsService.ts     |     100 |      100 |     100 |     100 |
-  EmployeeDocumentationService.ts       |     100 |      100 |     100 |     100 |
-  EmployeeHelpersService.ts             |     100 |      100 |     100 |     100 |
-  EmployeeLinkService.ts                |     100 |      100 |     100 |     100 |
-----------------------------------------|---------|----------|---------|---------|-------------------
-
-```
-
-</details>
-
 ## 📌 Visão Geral
 
-O projeto já vem configurado com **Docker** e scripts para inicializar rapidamente o **MongoDB** e o **Mongo-Express**.
+Esta API fornece um sistema para gerenciar a documentação obrigatória de colaboradores dentro de uma organização. De forma geral, ela permite:
+
+- Registrar e manter informações de colaboradores (dados básicos e identificadores).
+- Definir e gerenciar tipos de documento exigidos (por exemplo: CPF, Carteira de Trabalho, RG).
+- Associar e desassociar tipos de documento a colaboradores, para controlar quais documentos são obrigatórios para cada pessoa.
+- Registrar o envio de documentos (representação do envio), acompanhar o status de cada documento por colaborador e listar quais documentos ainda estão pendentes.
+- Listar documentos pendentes de todos os colaboradores com paginação e filtros (por colaborador e por tipo de documento).
+- Operações administrativas como atualização, desativação (soft delete) e restauração de tipos de documento.
+
+- Observação: todos os serviços aplicam o conceito de "soft delete" (exclusão lógica). Registros são marcados como inativos em vez de removidos fisicamente, preservando histórico e possibilitando auditoria de documentos ou colaboradores antigos quando necessário.
+
+A aplicação foca em regras de negócio claras, validação de entrada e modelagem simples dos dados para facilitar integração com interfaces externas (painéis administrativos ou fluxos de onboarding).
 
 ## 🛠️ Requisitos mínimos
 
@@ -264,6 +242,8 @@ Abra no navegador:
 
 Aqui você poderá explorar e testar as APIs via Swagger UI.
 
+Observação: a documentação do Swagger foi enriquecida e está completa, incluindo descrições detalhadas, exemplos de requisição/resposta e exemplos de payloads para facilitar testes e integração.
+
 Também disponibilizamos uma Postman collection para importar e executar exemplos de chamadas rapidamente:
 
 - Collection: `postman/gdc-backend.postman_collection.json`
@@ -272,15 +252,19 @@ Importe no Postman via File → Import
 
 ---
 
-## 🧩 Comandos úteis (DB-only e App-and-DB)
+## 🧩 Comandos úteis
 
+Scripts npm disponíveis (valide no `package.json`):
 Scripts npm disponíveis (valide no `package.json`):
 
 - `npm run start-db` — inicia `local-mongo` e `mongo-express` em background (equivale a `docker compose -f docker-compose-db.yml up --build -d`).
 - `npm run start-app` — inicia banco e app em container (`gdc-container-app`) usando `docker compose -f docker-compose-app.yml up --build -d`.
+- `npm run exec-in-app` — executa `npm start` dentro do container `gdc-container-app` (útil para debug remoto).
+- `npm run restart-app` — reinicia o serviço do app dentro do compose (`gdc-container-app`).
+- `npm run restart-db` — reinicia os serviços do banco (`local-mongo` e `mongo-express`).
+- `npm run logs` — segue os logs do container de aplicação (`gdc-container-app`).
 - `npm run seed` — importa os arquivos JSON da pasta `seed` para o banco definido em `SEED_DB` (default `appdb`). Use `WIPE_BEFORE_IMPORT=1` para apagar coleções explicitamente antes do import.
 - `npm run test` — executa a suíte de testes com Vitest.
-  - Run all tests once:
 
 Fluxos comuns:
 

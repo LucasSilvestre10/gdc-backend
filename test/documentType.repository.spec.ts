@@ -19,6 +19,101 @@ import { DocumentType } from "../src/models/DocumentType.js";
  *  Tratamento de erros e edge cases
  */
 describe("DocumentTypeRepository", () => {
+  it("deve usar toObject e extrair id via toHexString quando disponível", async () => {
+    const inputDto = { name: "CNH", description: "Carteira" };
+
+    const mockPlain = { _id: { toHexString: () => "hex-id-123" }, name: "CNH" };
+    const mockCreatedDocument = {
+      toObject: vi.fn().mockReturnValue(mockPlain),
+    };
+
+    mockModel.create.mockResolvedValue(mockCreatedDocument);
+
+    const result = await repository.create(inputDto);
+
+    expect(mockCreatedDocument.toObject).toHaveBeenCalledWith({
+      virtuals: true,
+    });
+    expect((result as any).id).toBe("hex-id-123");
+  });
+
+  it("deve usar toObject e extrair id quando _id for Buffer", async () => {
+    const inputDto = { name: "RG", description: "Registro" };
+
+    const buf = Buffer.from("abcd1234", "hex");
+    const mockPlain = { _id: buf, name: "RG" };
+    const mockCreatedDocument = {
+      toObject: vi.fn().mockReturnValue(mockPlain),
+    };
+
+    mockModel.create.mockResolvedValue(mockCreatedDocument);
+
+    const result = await repository.create(inputDto);
+
+    expect(mockCreatedDocument.toObject).toHaveBeenCalledWith({
+      virtuals: true,
+    });
+    expect((result as any).id).toBe(buf.toString("hex"));
+  });
+
+  it("deve cair no fallback para toJSON quando toObject falhar", async () => {
+    const inputDto = { name: "DOC", description: "Desc" };
+
+    const mockCreatedDocument = {
+      toObject: vi.fn().mockImplementation(() => {
+        throw new Error("toObject failed");
+      }),
+      toJSON: vi.fn().mockReturnValue({ _id: "raw-id", name: "DOC" }),
+    };
+
+    mockModel.create.mockResolvedValue(mockCreatedDocument);
+
+    const result = await repository.create(inputDto);
+
+    expect(mockCreatedDocument.toObject).toHaveBeenCalled();
+    expect(mockCreatedDocument.toJSON).toHaveBeenCalled();
+    expect((result as any)._id).toBe("raw-id");
+  });
+
+  it("deve extrair id como string quando _id for não-hex e não-buffer", async () => {
+    const inputDto = { name: "TIPO", description: "Desc" };
+
+    const mockPlain = { _id: 12345, name: "TIPO" };
+    const mockCreatedDocument = {
+      toObject: vi.fn().mockReturnValue(mockPlain),
+    };
+
+    mockModel.create.mockResolvedValue(mockCreatedDocument);
+
+    const result = await repository.create(inputDto);
+
+    expect(mockCreatedDocument.toObject).toHaveBeenCalledWith({
+      virtuals: true,
+    });
+    expect((result as any).id).toBe(String(12345));
+  });
+
+  it("deve definir id como undefined quando extração lançar erro", async () => {
+    const inputDto = { name: "ERR", description: "Desc" };
+
+    const badRaw = {
+      toHexString: () => {
+        throw new Error("boom");
+      },
+    };
+
+    const mockPlain = { _id: badRaw, name: "ERR" };
+    const mockCreatedDocument = {
+      toObject: vi.fn().mockReturnValue(mockPlain),
+    };
+
+    mockModel.create.mockResolvedValue(mockCreatedDocument);
+
+    const result = await repository.create(inputDto);
+
+    // Quando a extração falha, id deve ser undefined conforme catch
+    expect((result as any).id).toBeUndefined();
+  });
   let repository: DocumentTypeRepository;
   let mockMongooseService: any;
   let mockModel: any;

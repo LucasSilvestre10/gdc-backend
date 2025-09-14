@@ -1,3 +1,4 @@
+import { Property } from "@tsed/schema";
 /**
  * DTO para informações de paginação
  */
@@ -56,4 +57,27 @@ export interface SuccessItemsPaginatedResponseDto<T> {
 
   /** Mensagem de sucesso */
   message: string;
+}
+
+/**
+ * Classe genérica de resposta paginada reutilizável.
+ * Mantém compatibilidade com a implementação usada em outros DTOs (ex: employeeDTO.PaginatedResponseDto)
+ */
+export class PaginatedResponseDto<T> {
+  @Property()
+  success!: boolean;
+
+  @Property()
+  message?: string;
+
+  @Property()
+  data!: T[];
+
+  @Property()
+  pagination!: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
