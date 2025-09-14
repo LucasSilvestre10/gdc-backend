@@ -75,7 +75,6 @@ export class DocumentTypesController {
   @Description(
     "Lista tipos de documento com filtros: name (busca parcial), status (active/inactive/all). Por padrão retorna apenas registros ativos."
   )
-  @Returns(200, Array)
   @Example({
     success: true,
     data: [
@@ -84,8 +83,8 @@ export class DocumentTypesController {
         name: "CPF",
         description: "Cadastro de Pessoa Física",
         isActive: true,
-        createdAt: "2023-07-21T10:30:00.000Z",
-        updatedAt: "2023-07-21T10:30:00.000Z",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ],
     pagination: {
@@ -93,8 +92,11 @@ export class DocumentTypesController {
       limit: 10,
       total: 1,
       totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
     },
   })
+  @Returns(200, Array)
   async list(
     @QueryParams("page") page: number = DocumentTypesController.DEFAULT_PAGE,
     @QueryParams("limit") limit: number = DocumentTypesController.DEFAULT_LIMIT,

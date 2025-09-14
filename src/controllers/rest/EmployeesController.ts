@@ -6,6 +6,7 @@ import { Inject } from "@tsed/di";
 import { NotFound } from "@tsed/exceptions";
 import { ResponseHandler } from "../../middleware/ResponseHandler";
 import { MappingUtils } from "../../utils/MappingUtils";
+import { PaginationUtils } from "../../utils/PaginationUtils";
 import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -41,6 +42,9 @@ import { EmployeeService } from "../../services/EmployeeService";
  */
 @Controller("/employees")
 export class EmployeesController {
+  private static readonly DEFAULT_PAGE = 1;
+  private static readonly DEFAULT_LIMIT = 10;
+  private static readonly DEFAULT_STATUS = "active";
   @Inject()
   private employeeService!: EmployeeService;
 
@@ -73,9 +77,9 @@ export class EmployeesController {
   )
   @Returns(200, PaginatedResponseDto)
   async list(
-    @QueryParams("status") status: string = "all",
-    @QueryParams("page") page: number = 1,
-    @QueryParams("limit") limit: number = 20
+    @QueryParams("status") status: string = EmployeesController.DEFAULT_STATUS,
+    @QueryParams("page") page: number = EmployeesController.DEFAULT_PAGE,
+    @QueryParams("limit") limit: number = EmployeesController.DEFAULT_LIMIT
   ) {
     // Processa o filtro de status conforme especificação
     let filter = {};
@@ -84,7 +88,7 @@ export class EmployeesController {
     } else if (status === "inactive") {
       filter = { isActive: false };
     } else if (status === "all") {
-      filter = { isActive: "all" }; // Sinal especial para buscar todos
+      filter = { isActive: "all" };
     }
     // Para outros valores de status, usa filtro vazio (padrão do repositório)
 
@@ -97,12 +101,11 @@ export class EmployeesController {
       success: true,
       message: "Colaboradores listados com sucesso",
       data: result.items,
-      pagination: {
+      pagination: PaginationUtils.createPaginationInfo(
         page,
         limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / limit),
-      },
+        result.total
+      ),
     };
   }
 
@@ -112,7 +115,7 @@ export class EmployeesController {
    * @query query - Termo de busca (nome ou CPF)
    * @query status - Filtro de status: active, inactive, all (padrão: all)
    * @query page - Página (padrão: 1)
-   * @query limit - Limite por página (padrão: 20)
+   * @query limit - Limite por página (padrão: 10)
    * @returns { success, message, data, pagination }
    */
   @Get("/search")
@@ -143,12 +146,11 @@ export class EmployeesController {
           emp.documentationSummary
         ),
       })),
-      pagination: {
-        page: filters.page || 1,
-        limit: filters.limit || 20,
-        total: result.total,
-        totalPages: Math.ceil(result.total / (filters.limit || 20)),
-      },
+      pagination: PaginationUtils.createPaginationInfo(
+        filters.page,
+        filters.limit,
+        result.total
+      ),
     };
     return ResponseHandler.success(
       responseObject,
