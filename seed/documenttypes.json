@@ -1,0 +1,158 @@
+[
+  {
+    "_id": { "$oid": "68c09bfd001c98e08cf45de7" },
+    "name": "Cadastro Fiscal (inativo)",
+    "description": "",
+    "isActive": false,
+    "createdAt": { "$date": "2025-09-09T21:28:29.63Z" },
+    "updatedAt": { "$date": "2025-09-11T14:41:43.559Z" },
+    "__v": 0,
+    "deletedAt": { "$date": "2025-09-11T14:41:43.559Z" }
+  },
+  {
+    "_id": { "$oid": "68c09eb89f7160b6bde944d2" },
+    "name": "Cadastro Atualizado",
+    "description": "Documento com descrição fiscal",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T21:40:08.318Z" },
+    "updatedAt": { "$date": "2025-09-11T00:43:16.839Z" },
+    "__v": 0,
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c0a1997d886b802d80219b" },
+    "name": "Passaporte",
+    "description": "",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T21:52:25.746Z" },
+    "updatedAt": { "$date": "2025-09-09T21:52:25.746Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "68c0a1e07d886b802d8021b2" },
+    "name": "RG",
+    "description": "",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T21:53:36.796Z" },
+    "updatedAt": { "$date": "2025-09-09T21:53:36.796Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "68c0a6bd9684f257b5f4e075" },
+    "name": "Identidade Profissional",
+    "description": "Documento para fins profissionais",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T22:14:21.899Z" },
+    "updatedAt": { "$date": "2025-09-09T22:59:54.144Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "68c0a80d495d1e4c81f0a151" },
+    "name": "CNH",
+    "description": "",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T22:19:57.605Z" },
+    "updatedAt": { "$date": "2025-09-09T22:19:57.605Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "68c0b02f8dd443bfc5a44b75" },
+    "name": "Declaração de Residência",
+    "description": "",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T22:54:39.792Z" },
+    "updatedAt": { "$date": "2025-09-09T22:54:39.792Z" }
+  },
+  {
+    "_id": { "$oid": "68c0b12ee915e716f9c311f7" },
+    "name": "Carteira de Trabalho",
+    "description": "Carteira de Trabalho e Previd�ncia Social",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T22:58:54.525Z" },
+    "updatedAt": { "$date": "2025-09-09T22:58:54.525Z" }
+  },
+  {
+    "_id": { "$oid": "68c0b159e915e716f9c311fe" },
+    "name": "Título de Eleitor",
+    "description": "Documento que comprova a situação eleitoral do cidadão",
+    "isActive": false,
+    "createdAt": { "$date": "2025-09-09T22:59:37.734Z" },
+    "updatedAt": { "$date": "2025-09-12T15:38:00.649Z" },
+    "deletedAt": { "$date": "2025-09-12T15:38:00.648Z" }
+  },
+  {
+    "_id": { "$oid": "68c0b19fe915e716f9c31208" },
+    "name": "Comprovante de Veículo",
+    "description": "Documento relacionado ao veículo",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T23:00:47.106Z" },
+    "updatedAt": { "$date": "2025-09-10T21:52:18.285Z" },
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c0b24f0529be855310c6ad" },
+    "name": "Reservista",
+    "description": "Certificado de Reservista - Servi�o Militar",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-09T23:03:43.072Z" },
+    "updatedAt": { "$date": "2025-09-09T23:03:55.877Z" }
+  },
+  {
+    "_id": { "$oid": "68c0e5717b5fb2e62325bd81" },
+    "name": "CPF",
+    "description": "Cadastro de Pessoa Física",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T02:41:53.472Z" },
+    "updatedAt": { "$date": "2025-09-10T02:41:53.472Z" }
+  },
+  {
+    "_id": { "$oid": "68c1e0dbe7e674b0e47d9131" },
+    "name": "Comprovante de Endereço",
+    "description": "Documento para comprovar endereço",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T20:34:35.754Z" },
+    "updatedAt": { "$date": "2025-09-10T20:35:22.479Z" },
+    "deletedAt": null
+  },
+  {
+    "_id": { "$oid": "68c1e0e7e7e674b0e47d9134" },
+    "name": "Documento Atualizado",
+    "description": "Este documento foi atualizado via API",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T20:34:47.395Z" },
+    "updatedAt": { "$date": "2025-09-10T20:35:07.911Z" }
+  },
+  {
+    "_id": { "$oid": "68c1f2fce618f18b0f7639b4" },
+    "name": "Comprovante Fiscal Secundário",
+    "description": "Cadastro de pessoa física (variante)",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T21:51:56.482Z" },
+    "updatedAt": { "$date": "2025-09-11T14:35:02.413Z" }
+  },
+  {
+    "_id": { "$oid": "68c1f3d44a134ab7c76ba374" },
+    "name": "Certificado Profissional",
+    "description": "Documento de certificação profissional",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-10T21:55:32.512Z" },
+    "updatedAt": { "$date": "2025-09-10T21:55:32.512Z" }
+  },
+  {
+    "_id": { "$oid": "68c471463efe98c9bc880f69" },
+    "name": "Documento Complementar",
+    "description": "Documento complementar genérico",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-12T19:15:18.6Z" },
+    "updatedAt": { "$date": "2025-09-12T19:15:18.6Z" }
+  },
+  {
+    "_id": { "$oid": "68c4720645ffbee09077cbe9" },
+    "name": "Carteira Padrão",
+    "description": "Documento de carteira padrão",
+    "isActive": true,
+    "createdAt": { "$date": "2025-09-12T19:18:30.04Z" },
+    "updatedAt": { "$date": "2025-09-12T19:24:55.506Z" },
+    "deletedAt": null
+  }
+]

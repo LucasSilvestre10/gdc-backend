@@ -4,3 +4,4 @@
 export * from "./DocumentTypesController.js";
 export * from "./DocumentsController.js";
 export * from "./EmployeesController.js";
+export * from "./HealthController.js";

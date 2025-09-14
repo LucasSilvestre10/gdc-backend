@@ -24,6 +24,7 @@ async function bootstrap() {
     // Inicializa o TsED normalmente
     const platform = await PlatformExpress.bootstrap(Server);
     await platform.listen();
+  // Nota: seeds agora são aplicados via ferramenta externa (tools/import-seeds.cjs)
 
     SIG_EVENTS.forEach((evt) => process.on(evt, () => platform.stop()));
 

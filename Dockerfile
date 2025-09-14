@@ -26,14 +26,17 @@ RUN npm ci
 
 COPY ./src ./src
 
-RUN npm run build
+# Copia scripts auxiliares necessários para corrigir imports no dist
+COPY ./tools ./tools
+
+RUN npm run build-and-fix
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV WORKDIR /opt
 WORKDIR $WORKDIR
 
-RUN apk update && apk add build-base git curl
-RUN npm install -g pm2
+# tini helps with proper signal forwarding and PID 1 issues
+RUN apk update && apk add --no-cache tini ca-certificates
 
 COPY --from=build /opt .
 
@@ -45,4 +48,6 @@ EXPOSE 8081
 ENV PORT 8081
 ENV NODE_ENV production
 
-CMD ["pm2-runtime", "start", "processes.config.cjs", "--env", "production"]
+# Use tini as entrypoint and start the app in production mode using swc runtime
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/index.js"]
